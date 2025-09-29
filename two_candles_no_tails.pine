@@ -3,7 +3,7 @@
 // ✅ two candles
 // ✅ candles of opposite directions (one bullish, another bearish or vise versa)
 // ✅ the total size of the second candle must be bigger than the first one
-// ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 15% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
+// ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 20% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // - second candle size must be > than the past 100 candles average size
 // - it must be on top (last 20 candles)
 // - better UI marker
@@ -33,17 +33,17 @@ bodyCur = math.abs(close - open)
 // Second candle range must be larger than the first
 secondLarger = bodyCur > bodyPrev
 
-// Condition 3: Tail size check (max 15% of candle body)
+// Condition 3: Tail size check (max 20% of candle body)
 // For bullish current candle: check low-close tail of prev and low-open tail of current
 // For bearish current candle: check high-close tail of prev and high-open tail of current
 prevTailSize = bullCur ? (close[1] - low[1]) : (high[1] - close[1])
 curTailSize = bullCur ? (open - low) : (high - open)
 
-// Calculate 15% of each candle's total range
-prevTailLimit = bodyPrev * 0.15
-curTailLimit = bodyCur * 0.15
+// Calculate 20% of each candle's total range
+prevTailLimit = bodyPrev * 0.20
+curTailLimit = bodyCur * 0.20
 
-// Check if both tails are within 15% limit
+// Check if both tails are within 20% limit
 validTails = (prevTailSize <= prevTailLimit) and (curTailSize <= curTailLimit)
 
 // Final pattern condition
