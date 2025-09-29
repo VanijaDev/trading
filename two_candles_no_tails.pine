@@ -5,8 +5,8 @@
 // ✅ the total size of the second candle must be bigger than the first one by minimum 20% 
 // ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 20% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // ✅ max tail size for each timeframe
+// ✅ the pattern must be on top / bottom (last "n" candles)
 // - second candle size must be > than the past 100 candles average size
-// - it must be on top (last 20 candles)
 // - better UI marker
 
 //@version=6
@@ -16,6 +16,7 @@ CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE_MIN = 20
 TAIL_TO_BODY_MAX_PERCENTAGE = 20
 MAX_TAIL_TF_15_MIN = 50
 MAX_TAIL_TF_1_HOUR = 100
+PATTERN_TOP_OR_BOTTOM_CANDLES_COUNT = 50
 
 // --- Minimal pattern per request ---
 // Conditions:
@@ -57,8 +58,18 @@ if not na(maxTailLimit)
 // Check if both tails are within 20% limit
 validTails = (prevTailSize <= prevTailLimit) and (curTailSize <= curTailLimit)
 
+// Condition 5: First candle must be an extreme vs previous N candles
+// If the first candle (prev) is bullish -> its high must be higher than the previous N candles
+// If the first candle (prev) is bearish -> its low must be lower than the previous N candles
+lookbackN = PATTERN_TOP_OR_BOTTOM_CANDLES_COUNT
+prevWindowHigh = ta.highest(high[2], lookbackN)
+prevWindowLow = ta.lowest(low[2], lookbackN)
+prevIsTop = bullPrev and (high[1] > prevWindowHigh)
+prevIsBottom = (not bullPrev) and (low[1] < prevWindowLow)
+condition5 = prevIsTop or prevIsBottom
+
 // Final pattern condition
-pattern = oppositeDir and secondLarger and validTails
+pattern = oppositeDir and secondLarger and validTails and condition5
 
 // Plot a red arrow above the second candle when the pattern occurs
 plotshape(pattern, title="Two Candles, no tails", location=location.abovebar, style=shape.arrowdown, color=color.red, size=size.tiny, text="2C")
