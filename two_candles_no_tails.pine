@@ -11,7 +11,7 @@
 //@version=6
 indicator("Reinforced Engulfing Pattern", overlay=true, shorttitle="2C Bigger")
 
-CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE = 20
+CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE_MIN = 20
 TAIL_TO_BODY_MAX_PERCENTAGE = 20
 
 // --- Minimal pattern per request ---
@@ -32,12 +32,12 @@ bodyPrev = math.abs(close[1] - open[1])
 bodyCur = math.abs(close - open)
 
 // Second candle range must be larger than the first
-secondLarger = bodyCur > bodyPrev * (1 + CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE / 100)
+secondLarger = bodyCur > bodyPrev * (1 + CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE_MIN / 100)
 
 // Condition 3: Tail size check (max 20% of candle body)
 // For bullish current candle: check low-close tail of prev and low-open tail of current
 // For bearish current candle: check high-close tail of prev and high-open tail of current
-prevTailSize = bullCur ? (close[1] - low[1]) : (high[1] - close[1])
+prevTailSize = bullPrev ? (high[1] - close[1]) : (close[1] - low[1])
 curTailSize = bullCur ? (open - low) : (high - open)
 
 // Calculate 20% of each candle's total range
