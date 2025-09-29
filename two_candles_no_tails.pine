@@ -1,0 +1,65 @@
+// TODO:
+// 1. second candle size must be > than the past 250 candles average size
+// 2. better UI marker
+
+//@version=6
+indicator("Shaved Junction Engulfing Pattern (Fixed)", overlay=true)
+
+// --- 1. Calculate Body and Shadow Sizes (Current Candle) ---
+isBullish = close > open
+isBearish = close < open
+bodySize = math.abs(close - open)
+upperShadow = high - math.max(close, open)
+lowerShadow = math.min(close, open) - low
+
+// --- 2. Calculate Body and Shadow Sizes (Previous Candle) ---
+isBullishPrev = close[1] > open[1]
+isBearishPrev = close[1] < open[1]
+bodySizePrev = math.abs(close[1] - open[1])
+upperShadowPrev = high[1] - math.max(close[1], open[1])
+lowerShadowPrev = math.min(close[1], open[1]) - low[1]
+
+// Ensure bodySize is not zero to avoid division by zero or incorrect percentage
+validBodySize = bodySize > 0 ? bodySize : 0.0000001
+validBodySizePrev = bodySizePrev > 0 ? bodySizePrev : 0.0000001
+
+
+// --- 3. Define Pattern Conditions ---
+
+// Condition 1: Opposite Directions
+conditionOpposite = (isBullish and isBearishPrev) or (isBearish and isBullishPrev)
+
+// Condition 2: Engulfing Size (Total Range)
+conditionEngulfing = (high - low) > (high[1] - low[1])
+
+// Condition 3: Minimal Shadow at Junction (10% Tolerance)
+
+// Case A: Previous is Bullish (close[1] > open[1]), Current is Bearish (close < open)
+// Junction is at the top of the first candle and top of the second candle.
+// We need to check the UPPER shadow of the previous candle (close side)
+// and the UPPER shadow of the current candle (open side).
+topReversalCriteria = 
+     isBullishPrev and isBearish and
+     upperShadowPrev <= validBodySizePrev * 0.10 and // Upper shadow of previous (bullish) candle
+     upperShadow     <= validBodySize * 0.10          // Upper shadow of current (bearish) candle
+
+// Case B: Previous is Bearish (close[1] < open[1]), Current is Bullish (close > open)
+// Junction is at the bottom of the first candle and bottom of the second candle.
+// We need to check the LOWER shadow of the previous candle (close side)
+// and the LOWER shadow of the current candle (open side).
+bottomReversalCriteria = 
+     isBearishPrev and isBullish and
+     lowerShadowPrev <= validBodySizePrev * 0.10 and // Lower shadow of previous (bearish) candle
+     lowerShadow     <= validBodySize * 0.10          // Lower shadow of current (bullish) candle
+
+// Combine all detection logic
+patternDetected = conditionOpposite and conditionEngulfing and (topReversalCriteria or bottomReversalCriteria)
+
+// --- 4. Plot Signal ---
+// Mark the second candle of the pattern with a red arrow above it.
+plotshape(patternDetected, 
+     title="Reversal Pattern", 
+     location=location.abovebar, 
+     color=color.new(color.red, 0), 
+     style=shape.arrowdown, 
+     size=size.large)
