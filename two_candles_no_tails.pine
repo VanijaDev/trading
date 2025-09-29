@@ -1,9 +1,9 @@
 // Conditions:
+// ✅ this pattern must be marked with the red arrow above the second candle.
 // ✅ two candles
 // ✅ candles of opposite directions (one bullish, another bearish or vise versa)
 // ✅ the total size of the second candle must be bigger than the first one
-// - the side of the closing for the first candle & opening for the second must contain no tails or maximum 10% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
-// - this pattern must be marked with the red arrow above the second candle.
+// ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 15% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // - second candle size must be > than the past 100 candles average size
 // - it must be on top (last 20 candles)
 // - better UI marker
@@ -27,14 +27,27 @@ bearCur = close < open
 oppositeDir = (bullPrev and bearCur) or (bearPrev and bullCur)
 
 // Condition 2: Candle total ranges
-rangePrev = high[1] - low[1]
-rangeCur = high - low
+bodyPrev = math.abs(close[1] - open[1])
+bodyCur = math.abs(close - open)
 
 // Second candle range must be larger than the first
-secondLarger = rangeCur > rangePrev
+secondLarger = bodyCur > bodyPrev
+
+// Condition 3: Tail size check (max 15% of candle body)
+// For bullish current candle: check low-close tail of prev and low-open tail of current
+// For bearish current candle: check high-close tail of prev and high-open tail of current
+prevTailSize = bullCur ? (close[1] - low[1]) : (high[1] - close[1])
+curTailSize = bullCur ? (open - low) : (high - open)
+
+// Calculate 15% of each candle's total range
+prevTailLimit = bodyPrev * 0.15
+curTailLimit = bodyCur * 0.15
+
+// Check if both tails are within 15% limit
+validTails = (prevTailSize <= prevTailLimit) and (curTailSize <= curTailLimit)
 
 // Final pattern condition
-pattern = oppositeDir and secondLarger
+pattern = oppositeDir and secondLarger and validTails
 
 // Plot a red arrow above the second candle when the pattern occurs
 plotshape(pattern, title="Two Candles, no tails", location=location.abovebar, style=shape.arrowdown, color=color.red, size=size.tiny, text="2C")
