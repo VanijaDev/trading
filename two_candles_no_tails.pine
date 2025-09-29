@@ -19,12 +19,10 @@ indicator("Reinforced Engulfing Pattern", overlay=true, shorttitle="2C Bigger")
 
 // Condition 1: Candle directions
 bullPrev = close[1] > open[1]
-bearPrev = close[1] < open[1]
 bullCur = close > open
-bearCur = close < open
 
 // Opposite directions between the two candles
-oppositeDir = (bullPrev and bearCur) or (bearPrev and bullCur)
+oppositeDir = (bullPrev and not bullCur) or (not bullPrev and bullCur)
 
 // Condition 2: Candle total ranges
 bodyPrev = math.abs(close[1] - open[1])
