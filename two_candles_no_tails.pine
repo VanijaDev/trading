@@ -1,65 +1,43 @@
-// TODO:
-// 1. second candle size must be > than the past 250 candles average size
-// 2. better UI marker
+// Conditions:
+// ✅ two candles
+// ✅ candles of opposite directions (one bullish, another bearish or vise versa)
+// ✅ the total size of the second candle must be bigger than the first one
+// - the side of the closing for the first candle & opening for the second must contain no tails or maximum 10% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
+// - this pattern must be marked with the red arrow above the second candle.
+// - second candle size must be > than the past 100 candles average size
+// - it must be on top (last 20 candles)
+// - better UI marker
 
 //@version=6
-indicator("Shaved Junction Engulfing Pattern (Fixed)", overlay=true)
+indicator("Reinforced Engulfing Pattern", overlay=true, shorttitle="2C Bigger")
 
-// --- 1. Calculate Body and Shadow Sizes (Current Candle) ---
-isBullish = close > open
-isBearish = close < open
-bodySize = math.abs(close - open)
-upperShadow = high - math.max(close, open)
-lowerShadow = math.min(close, open) - low
+// --- Minimal pattern per request ---
+// Conditions:
+// - two candles
+// - opposite directions (one bullish, another bearish)
+// - total size (high-low) of the second candle > total size of the first candle
 
-// --- 2. Calculate Body and Shadow Sizes (Previous Candle) ---
-isBullishPrev = close[1] > open[1]
-isBearishPrev = close[1] < open[1]
-bodySizePrev = math.abs(close[1] - open[1])
-upperShadowPrev = high[1] - math.max(close[1], open[1])
-lowerShadowPrev = math.min(close[1], open[1]) - low[1]
+// Condition 1: Candle directions
+bullPrev = close[1] > open[1]
+bearPrev = close[1] < open[1]
+bullCur = close > open
+bearCur = close < open
 
-// Ensure bodySize is not zero to avoid division by zero or incorrect percentage
-validBodySize = bodySize > 0 ? bodySize : 0.0000001
-validBodySizePrev = bodySizePrev > 0 ? bodySizePrev : 0.0000001
+// Opposite directions between the two candles
+oppositeDir = (bullPrev and bearCur) or (bearPrev and bullCur)
 
+// Condition 2: Candle total ranges
+rangePrev = high[1] - low[1]
+rangeCur = high - low
 
-// --- 3. Define Pattern Conditions ---
+// Second candle range must be larger than the first
+secondLarger = rangeCur > rangePrev
 
-// Condition 1: Opposite Directions
-conditionOpposite = (isBullish and isBearishPrev) or (isBearish and isBullishPrev)
+// Final pattern condition
+pattern = oppositeDir and secondLarger
 
-// Condition 2: Engulfing Size (Total Range)
-conditionEngulfing = (high - low) > (high[1] - low[1])
+// Plot a red arrow above the second candle when the pattern occurs
+plotshape(pattern, title="Two Candles, no tails", location=location.abovebar, style=shape.arrowdown, color=color.red, size=size.tiny, text="2C")
 
-// Condition 3: Minimal Shadow at Junction (10% Tolerance)
-
-// Case A: Previous is Bullish (close[1] > open[1]), Current is Bearish (close < open)
-// Junction is at the top of the first candle and top of the second candle.
-// We need to check the UPPER shadow of the previous candle (close side)
-// and the UPPER shadow of the current candle (open side).
-topReversalCriteria = 
-     isBullishPrev and isBearish and
-     upperShadowPrev <= validBodySizePrev * 0.10 and // Upper shadow of previous (bullish) candle
-     upperShadow     <= validBodySize * 0.10          // Upper shadow of current (bearish) candle
-
-// Case B: Previous is Bearish (close[1] < open[1]), Current is Bullish (close > open)
-// Junction is at the bottom of the first candle and bottom of the second candle.
-// We need to check the LOWER shadow of the previous candle (close side)
-// and the LOWER shadow of the current candle (open side).
-bottomReversalCriteria = 
-     isBearishPrev and isBullish and
-     lowerShadowPrev <= validBodySizePrev * 0.10 and // Lower shadow of previous (bearish) candle
-     lowerShadow     <= validBodySize * 0.10          // Lower shadow of current (bullish) candle
-
-// Combine all detection logic
-patternDetected = conditionOpposite and conditionEngulfing and (topReversalCriteria or bottomReversalCriteria)
-
-// --- 4. Plot Signal ---
-// Mark the second candle of the pattern with a red arrow above it.
-plotshape(patternDetected, 
-     title="Reversal Pattern", 
-     location=location.abovebar, 
-     color=color.new(color.red, 0), 
-     style=shape.arrowdown, 
-     size=size.large)
+// Alert when the pattern forms on the current bar
+alertcondition(pattern, title="Two Candles, no tails", message="Two-candle opposite pattern: second candle larger than first")
