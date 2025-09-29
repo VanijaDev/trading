@@ -2,7 +2,7 @@
 // ✅ this pattern must be marked with the red arrow above the second candle.
 // ✅ two candles
 // ✅ candles of opposite directions (one bullish, another bearish or vise versa)
-// ✅ the total size of the second candle must be bigger than the first one
+// ✅ the total size of the second candle must be bigger than the first one by minimum 20% 
 // ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 20% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // - second candle size must be > than the past 100 candles average size
 // - it must be on top (last 20 candles)
@@ -10,6 +10,9 @@
 
 //@version=6
 indicator("Reinforced Engulfing Pattern", overlay=true, shorttitle="2C Bigger")
+
+CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE = 20
+TAIL_TO_BODY_MAX_PERCENTAGE = 20
 
 // --- Minimal pattern per request ---
 // Conditions:
@@ -29,7 +32,7 @@ bodyPrev = math.abs(close[1] - open[1])
 bodyCur = math.abs(close - open)
 
 // Second candle range must be larger than the first
-secondLarger = bodyCur > bodyPrev
+secondLarger = bodyCur > bodyPrev * (1 + CURRENT_CANDLE_BIGGER_THAN_PREV_PERCENTAGE / 100)
 
 // Condition 3: Tail size check (max 20% of candle body)
 // For bullish current candle: check low-close tail of prev and low-open tail of current
@@ -38,8 +41,8 @@ prevTailSize = bullCur ? (close[1] - low[1]) : (high[1] - close[1])
 curTailSize = bullCur ? (open - low) : (high - open)
 
 // Calculate 20% of each candle's total range
-prevTailLimit = bodyPrev * 0.20
-curTailLimit = bodyCur * 0.20
+prevTailLimit = bodyPrev * (TAIL_TO_BODY_MAX_PERCENTAGE / 100)
+curTailLimit = bodyCur * (TAIL_TO_BODY_MAX_PERCENTAGE / 100)
 
 // Check if both tails are within 20% limit
 validTails = (prevTailSize <= prevTailLimit) and (curTailSize <= curTailLimit)
