@@ -2,11 +2,11 @@
 // ✅ this pattern must be marked with the red arrow above the second candle.
 // ✅ two candles
 // ✅ candles of opposite directions (one bullish, another bearish or vise versa)
-// ✅ the total size of the second candle must be bigger than the first one by minimum 20% 
-// ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum 20% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
+// ✅ the total size of the second candle must be bigger than the first one by minimum n% 
+// ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum n% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // ✅ max tail size for each timeframe
 // ✅ the pattern must be on top / bottom (last "n" candles)
-// - second candle size must be > than the past 100 candles average size
+// - second candle size must be > than the past n candles average size
 // - better UI marker
 
 //@version=6
