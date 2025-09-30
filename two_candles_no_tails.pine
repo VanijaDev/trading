@@ -6,6 +6,7 @@
 // ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum n% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // ✅ max tail size for each timeframe
 // ✅ the pattern must be on top / bottom (last "n" candles)
+// - mark the pattern below if bullish / above if bearish
 // - second candle size must be > than the past n candles average size
 // - better UI marker
 
