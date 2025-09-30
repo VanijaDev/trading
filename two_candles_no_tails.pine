@@ -6,7 +6,7 @@
 // ✅ the side of the closing for the first candle & opening for the second must contain no tails or maximum n% of it's candle body. Example: closing side is top if the first candle is bullish, bottom - is the first candle is bearish
 // ✅ max tail size for each timeframe
 // ✅ the pattern must be on top / bottom (last "n" candles)
-// - mark the pattern below if bullish / above if bearish
+// ✅ mark the pattern below if bullish / above if bearish
 // - second candle size must be > than the past n candles average size
 // - better UI marker
 
@@ -72,8 +72,9 @@ condition5 = prevIsTop or prevIsBottom
 // Final pattern condition
 pattern = oppositeDir and secondLarger and validTails and condition5
 
-// Plot a red arrow above the second candle when the pattern occurs
-plotshape(pattern, title="Two Candles, no tails", location=location.abovebar, style=shape.arrowdown, color=color.red, size=size.tiny, text="2C")
+// Plot markers: below if bullish current candle, above if bearish current candle
+plotshape(pattern and bullCur, title="Two Candles, no tails (bullish)", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="2C")
+plotshape(pattern and not bullCur, title="Two Candles, no tails (bearish)", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="2C")
 
 // Alert when the pattern forms on the current bar
 alertcondition(pattern, title="Two Candles, no tails", message="Two-candle opposite pattern: second candle larger than first")
