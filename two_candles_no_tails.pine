@@ -19,6 +19,7 @@ MAX_TAIL_TF_15_MIN = 50
 MAX_TAIL_TF_1_HOUR = 100
 PATTERN_TOP_OR_BOTTOM_CANDLES_COUNT = 10
 SECOND_BODY_AVG_LOOKBACK = 30
+MARKER_UNIQUE_TEXT = "2C"
 
 // --- Minimal pattern per request ---
 // Conditions:
@@ -72,14 +73,14 @@ prevMustBeExtreme = prevIsTop or prevIsBottom
 
 // Condition 6: Second candle body > average body of past N candles (excludes current bar)
 avgBodyPrevN = ta.sma(math.abs(close - open), SECOND_BODY_AVG_LOOKBACK)[1]
-curBodyBiggerThanPevRange = bodyCur > avgBodyPrevN
+curBodyBiggerThanPrevRange = bodyCur > avgBodyPrevN
 
 // Final pattern condition
-pattern = oppositeDir and secondLarger and validTails and prevMustBeExtreme and curBodyBiggerThanPevRange
+pattern = oppositeDir and secondLarger and validTails and prevMustBeExtreme and curBodyBiggerThanPrevRange
 
 // Plot markers: below if bullish current candle, above if bearish current candle
-plotshape(pattern and bullCur, title="Two Candles, no tails (bullish)", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="2C")
-plotshape(pattern and not bullCur, title="Two Candles, no tails (bearish)", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="2C")
+plotshape(pattern and bullCur, title="Two Candles, no tails (bullish)", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text=MARKER_UNIQUE_TEXT)
+plotshape(pattern and not bullCur, title="Two Candles, no tails (bearish)", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text=MARKER_UNIQUE_TEXT)
 
 // Alert when the pattern forms on the current bar
 alertcondition(pattern, title="Two Candles, no tails", message="Two-candle opposite pattern: second candle larger than first")
