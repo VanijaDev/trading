@@ -68,14 +68,14 @@ prevWindowHigh = ta.highest(high[2], lookbackN)
 prevWindowLow = ta.lowest(low[2], lookbackN)
 prevIsTop = bullPrev and (high[1] > prevWindowHigh)
 prevIsBottom = (not bullPrev) and (low[1] < prevWindowLow)
-condition5 = prevIsTop or prevIsBottom
+prevMustBeExtreme = prevIsTop or prevIsBottom
 
 // Condition 6: Second candle body > average body of past N candles (excludes current bar)
 avgBodyPrevN = ta.sma(math.abs(close - open), SECOND_BODY_AVG_LOOKBACK)[1]
-condition6 = bodyCur > avgBodyPrevN
+curBodyBiggerThanPevRange = bodyCur > avgBodyPrevN
 
 // Final pattern condition
-pattern = oppositeDir and secondLarger and validTails and condition5 and condition6
+pattern = oppositeDir and secondLarger and validTails and prevMustBeExtreme and curBodyBiggerThanPevRange
 
 // Plot markers: below if bullish current candle, above if bearish current candle
 plotshape(pattern and bullCur, title="Two Candles, no tails (bullish)", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="2C")
