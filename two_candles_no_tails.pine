@@ -1,5 +1,10 @@
+// Desription:
+// - Reversal pattern. Two candles with the second candle body bigger than the first one and no tails on the closing/opening sides of the candles.
+// - Only on obvious trend & on bounce back positions (channels, Trend Lines)
+// - SL can be tight.
+
 // Conditions:
-// ✅ this pattern must be marked with the red arrow above the second candle.
+// ✅ this pattern must be marked with the arrow above / below the second candle.
 // ✅ two candles
 // ✅ candles of opposite directions (one bullish, another bearish or vise versa)
 // ✅ the total size of the second candle must be bigger than the first one by minimum n% 
@@ -8,7 +13,6 @@
 // ✅ the pattern must be on top / bottom (last "n" candles)
 // ✅ mark the pattern below if bullish / above if bearish
 // ✅ second candle body size must be > than the past n candles average size
-// - better UI marker
 
 //@version=6
 indicator("Reinforced Engulfing Pattern", overlay=true, shorttitle="2C Bigger")
