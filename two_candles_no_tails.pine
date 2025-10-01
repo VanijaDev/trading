@@ -7,7 +7,7 @@
 // ✅ max tail size for each timeframe
 // ✅ the pattern must be on top / bottom (last "n" candles)
 // ✅ mark the pattern below if bullish / above if bearish
-// - second candle size must be > than the past n candles average size
+// ✅ second candle body size must be > than the past n candles average size
 // - better UI marker
 
 //@version=6
@@ -18,6 +18,7 @@ TAIL_TO_BODY_MAX_PERCENTAGE = 20
 MAX_TAIL_TF_15_MIN = 50
 MAX_TAIL_TF_1_HOUR = 100
 PATTERN_TOP_OR_BOTTOM_CANDLES_COUNT = 10
+SECOND_BODY_AVG_LOOKBACK = 30
 
 // --- Minimal pattern per request ---
 // Conditions:
@@ -69,8 +70,12 @@ prevIsTop = bullPrev and (high[1] > prevWindowHigh)
 prevIsBottom = (not bullPrev) and (low[1] < prevWindowLow)
 condition5 = prevIsTop or prevIsBottom
 
+// Condition 6: Second candle body > average body of past N candles (excludes current bar)
+avgBodyPrevN = ta.sma(math.abs(close - open), SECOND_BODY_AVG_LOOKBACK)[1]
+condition6 = bodyCur > avgBodyPrevN
+
 // Final pattern condition
-pattern = oppositeDir and secondLarger and validTails and condition5
+pattern = oppositeDir and secondLarger and validTails and condition5 and condition6
 
 // Plot markers: below if bullish current candle, above if bearish current candle
 plotshape(pattern and bullCur, title="Two Candles, no tails (bullish)", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="2C")
