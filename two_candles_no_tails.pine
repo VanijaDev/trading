@@ -1,4 +1,4 @@
-// Desription:
+// Description:
 // - Reversal pattern. Two candles with the second candle body bigger than the first one and no tails on the closing/opening sides of the candles.
 // - Only on obvious trend & on bounce back positions (channels, Trend Lines)
 // - SL can be tight.
