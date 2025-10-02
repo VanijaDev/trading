@@ -1,0 +1,13 @@
+// Description:
+// - Two big candles of opposite directions with a small candle in between.
+✅
+// Conditions:
+// - three candles with the first & last in opposite directions (one bullish, another bearish or vise versa).
+// - the first & last candles must be big (body size > average body size of the past n candles).
+// - the entire size of the middle candle must be very small compared to the first & last candles
+// - this pattern must be on top / bottom (last "n" candles)
+// - mark the pattern below if bullish / above if bearish
+
+
+//@version=6
+indicator("Two Big Candles with Small or Hammer Between", overlay=true, shorttitle="2C Small Between")
