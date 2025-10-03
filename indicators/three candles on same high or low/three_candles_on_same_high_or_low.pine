@@ -1,0 +1,53 @@
+// Description:
+// - Three candles on the same high or low
+// ✅ 
+// Conditions:
+// ✅ three candles on the same high or low (within a small tolerance)
+// ✅ mark the pattern below if bullish / above if bearish
+// ✅ this pattern must be on top / bottom (last "n" candles)
+// ✅ small tails on the same level
+
+
+//@version=6
+indicator("Three Candles on Same High or Low", overlay=true, shorttitle="3C Same High/Low")
+
+// Tolerance in price units for considering highs/lows "the same"
+SAME_LEVEL_TOLERANCE = 125.0
+// Lookback window for top/bottom check
+PATTERN_TOP_BOTTOM_LOOKBACK = 10
+// Tail caps (fixed amount in price units) applied when same high/low is detected
+MAX_TOP_LOW_TAIL = 25.0
+
+// Compute if three consecutive candles share approximately the same high
+hMax = math.max(high, math.max(high[1], high[2]))
+hMin = math.min(high, math.min(high[1], high[2]))
+sameHigh = (hMax - hMin) <= SAME_LEVEL_TOLERANCE
+
+// Compute if three consecutive candles share approximately the same low
+lMax = math.max(low, math.max(low[1], low[2]))
+lMin = math.min(low, math.min(low[1], low[2]))
+sameLow = (lMax - lMin) <= SAME_LEVEL_TOLERANCE
+
+// Top/bottom check across the last N candles (computed every bar for consistency)
+highestHighN = ta.highest(high, PATTERN_TOP_BOTTOM_LOOKBACK)
+lowestLowN = ta.lowest(low, PATTERN_TOP_BOTTOM_LOOKBACK)
+
+// Side tails for the three bars (current, previous, and two bars back)
+u0 = high - math.max(open, close)
+u1 = high[1] - math.max(open[1], close[1])
+u2 = high[2] - math.max(open[2], close[2])
+l0 = math.min(open, close) - low
+l1 = math.min(open[1], close[1]) - low[1]
+l2 = math.min(open[2], close[2]) - low[2]
+
+tailsOkTop = (u0 <= MAX_TOP_LOW_TAIL) and (u1 <= MAX_TOP_LOW_TAIL) and (u2 <= MAX_TOP_LOW_TAIL)
+tailsOkLow = (l0 <= MAX_TOP_LOW_TAIL) and (l1 <= MAX_TOP_LOW_TAIL) and (l2 <= MAX_TOP_LOW_TAIL)
+
+// Final pattern condition: same level AND at top/bottom of the lookback window, with tail caps
+atTop = sameHigh and tailsOkTop and (hMax >= highestHighN)
+atBottom = sameLow and tailsOkLow and (lMin <= lowestLowN)
+pattern = atTop or atBottom
+
+// Marking: below if same low, above if same high
+plotshape(atBottom, title="3C Same Low", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="3C L")
+plotshape(atTop, title="3C Same High", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="3C H")
