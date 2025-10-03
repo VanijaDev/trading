@@ -1,0 +1,83 @@
+// Description:
+// - Two big candles of opposite directions with a small candle in between.
+// 
+// ✅ Conditions:
+// ✅ three candles with the first & last in opposite directions (one bullish, another bearish or vise versa).
+// ✅ small tails for the first and last candles
+// ✅ the entire size of the middle candle must be very small compared to the first & last candles
+// ✅ this pattern must be on top / bottom (last "n" candles)
+// ✅ mark the pattern below if bullish / above if bearish
+
+
+//@version=6
+indicator("Two Big Candles with Small Between", overlay=true, shorttitle="2C Small Between")
+
+EDGE_CANDLES_SIZE_MAX_DIFF_PCT = 30.0  // Max allowed percentage difference between first and third candles' total ranges (high-low)
+EDGE_TAIL_MAX_PCT = 30.0  // Each tail (upper/lower) must be <= this % of the candle's total range
+EDGE_HILO_MAX_DIFF_PCT = 30.0  // High & Low of edge candles must be within this % of the larger edge range
+FIRST_EXTREME_LOOKBACK = 10     // First (edge) candle must be an extreme vs previous N candles
+MIDDLE_MAX_PCT = 40.0  // Middle candle total size must be <= this % of the biggest edge candle size
+
+// ------------------------
+// Condition 1: Three-candle window: first = bar[2], middle = bar[1], third = current bar
+// ------------------------
+sizeFirst = high[2] - low[2]
+sizeMid   = high[1] - low[1]
+sizeThird = high - low
+
+bullFirst = close[2] > open[2]
+bullThird = close > open
+
+// First and third must be opposite directions
+oppositeEnds = (bullFirst and bullThird == false) or (bullFirst == false and bullThird)
+
+// Total range similarity within EDGE_CANDLES_SIZE_MAX_DIFF_PCT (relative to the larger range)
+endsBigger = math.max(sizeFirst, sizeThird)
+endsSmaller = math.min(sizeFirst, sizeThird)
+endsSimilar = endsBigger > 0 ? (endsBigger - endsSmaller) / endsBigger * 100.0 <= EDGE_CANDLES_SIZE_MAX_DIFF_PCT : false
+
+condition1 = oppositeEnds and endsSimilar
+
+// ------------------------
+// Condition 2: Edge candles (first & third) tails on both sides <= EDGE_TAIL_MAX_PCT of total range
+// ------------------------
+upperTailFirst = high[2] - math.max(open[2], close[2])
+lowerTailFirst = math.min(open[2], close[2]) - low[2]
+upperTailThird = high - math.max(open, close)
+lowerTailThird = math.min(open, close) - low
+
+tailLimitFirst = sizeFirst * (EDGE_TAIL_MAX_PCT / 100.0)
+tailLimitThird = sizeThird * (EDGE_TAIL_MAX_PCT / 100.0)
+
+tailsOkFirst = sizeFirst > 0 and (upperTailFirst <= tailLimitFirst) and (lowerTailFirst <= tailLimitFirst)
+tailsOkThird = sizeThird > 0 and (upperTailThird <= tailLimitThird) and (lowerTailThird <= tailLimitThird)
+
+condition2 = tailsOkFirst and tailsOkThird
+
+// ------------------------
+// Condition 3: Edge candles highs & lows must be close (within EDGE_HILO_MAX_DIFF_PCT of larger edge range)
+// ------------------------
+hiDiff = math.abs(high - high[2])
+loDiff = math.abs(low - low[2])
+hiLoThreshold = endsBigger * (EDGE_HILO_MAX_DIFF_PCT / 100.0)
+condition3 = (hiDiff <= hiLoThreshold) and (loDiff <= hiLoThreshold)
+
+// ------------------------
+// Condition 5: First candle (bar[2]) must be an extreme vs previous N candles
+// If first is bullish -> high[2] > highest of previous N candles before it
+// If first is bearish -> low[2] < lowest of previous N candles before it
+firstWindowHigh = ta.highest(high[3], FIRST_EXTREME_LOOKBACK)
+firstWindowLow  = ta.lowest(low[3], FIRST_EXTREME_LOOKBACK)
+firstIsTop = bullFirst and (high[2] > firstWindowHigh)
+firstIsBottom = (bullFirst == false) and (low[2] < firstWindowLow)
+condition5 = firstIsTop or firstIsBottom
+
+// ------------------------
+// Condition 4: Middle candle must be small vs biggest edge (<= MIDDLE_MAX_PCT of endsBigger)
+// ------------------------
+middleThreshold = endsBigger * (MIDDLE_MAX_PCT / 100.0)
+condition4 = endsBigger > 0 and (sizeMid <= middleThreshold)
+
+// Visual: mark below if third is bullish, above if third is bearish (only when all conditions met)
+plotshape(condition1 and condition2 and condition3 and condition4 and condition5 and bullThird, title="Cond12345 Bull", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="C12345")
+plotshape(condition1 and condition2 and condition3 and condition4 and condition5 and bullThird == false, title="Cond12345 Bear", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C12345")
