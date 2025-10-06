@@ -16,7 +16,7 @@ SAME_LEVEL_TOLERANCE = 125.0
 // Lookback window for top/bottom check
 PATTERN_TOP_BOTTOM_LOOKBACK = 10
 // Tail caps (fixed amount in price units) applied when same high/low is detected
-MAX_TOP_LOW_TAIL = 25.0
+MAX_TOP_LOW_TAIL = 20.0
 
 // Compute if three consecutive candles share approximately the same high
 hMax = math.max(high, math.max(high[1], high[2]))
