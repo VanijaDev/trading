@@ -7,7 +7,7 @@
 // ✅ the first and the third candle's high & low must approximately the same
 // ✅ the middle candle must be a Doji (open and close are very close)
 // ✅ this pattern must be on top / bottom (last "n" candles)
-// - mark the pattern below if bullish / above if bearish
+// ✅ mark the pattern below if bullish / above if bearish
 
 
 //@version=6
@@ -83,6 +83,7 @@ atTop = (high >= highestHighN) or (high[2] >= highestHighN)
 atBottom = (low <= lowestLowN) or (low[2] <= lowestLowN)
 condition5 = atTop or atBottom
 
-// Mark found pattern with a red arrow above the third candle
-plotshape(condition1 and condition2 and condition3 and condition4 and condition5, title="Cond12345", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C12345")
+// Mark pattern: below if bullish (bullThird), above if bearish
+plotshape(condition1 and condition2 and condition3 and condition4 and condition5 and bullThird, title="Cond12345 Bull", location=location.belowbar, style=shape.arrowup, color=color.new(color.green, 0), size=size.tiny, text="Doji on extreme")
+plotshape(condition1 and condition2 and condition3 and condition4 and condition5 and (not bullThird), title="Cond12345 Bear", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="Doji on extreme")
 
