@@ -5,8 +5,8 @@
 // ✅ three candles with the first & last in opposite directions (one bullish, another bearish or vise versa).
 // ✅ small tails for the first and last candles
 // ✅ the first and the third candle's high & low must approximately the same
-// - the entire size of the middle candle must be small compared to the first & last candles
-// - this pattern must be on top / bottom (last "n" candles)
+// ✅ the middle candle must be a Doji (open and close are very close)
+// ✅ this pattern must be on top / bottom (last "n" candles)
 // - mark the pattern below if bullish / above if bearish
 
 
@@ -17,14 +17,17 @@ indicator("Two Big Candles with Small Between", overlay=true, shorttitle="2C Doj
 // Condition 1 constant
 // ------------------------
 EDGE_CANDLES_SIZE_MAX_DIFF_PCT = 20.0  // Max allowed percentage difference between first and third candles' total ranges (high-low)
-EDGE_TAIL_MAX_PCT = 10.0               // Each tail (upper/lower) must be <= this % of its candle total range
-EDGE_HILO_MAX_DIFF_PCT = 10.0          // Allowed % difference between first & third highs/lows relative to larger edge range
+EDGE_TAIL_MAX_PCT = 20.0               // Each tail (upper/lower) must be <= this % of its candle total range
+EDGE_HILO_MAX_DIFF_PCT = 20.0          // Allowed % difference between first & third highs/lows relative to larger edge range
+DOJI_BODY_MAX = 25.0                   // Max allowed body size (absolute price units) for the middle Doji candle
+FIRST_EXTREME_LOOKBACK = 10            // Pattern must sit at a top/bottom within the last N candles
 
 // ------------------------
 // Three-candle window: first = bar[2], middle = bar[1], third = current bar
 // ------------------------
 sizeFirst = high[2] - low[2]
 sizeThird = high - low
+bodyMid  = math.abs(close[1] - open[1])
 
 bullFirst = close[2] > open[2]
 bullThird = close > open
@@ -64,6 +67,22 @@ loDiff = math.abs(low - low[2])
 hiLoThreshold = endsBigger * (EDGE_HILO_MAX_DIFF_PCT / 100.0)
 condition3 = (hiDiff <= hiLoThreshold) and (loDiff <= hiLoThreshold)
 
+// ------------------------
+// Condition 4: Middle candle must be a Doji (tiny body)
+// ------------------------
+condition4 = bodyMid <= DOJI_BODY_MAX
+
+// ------------------------
+// Condition 5: Pattern must be at a top/bottom within the last N candles
+// ------------------------
+highestHighN = ta.highest(high[2], FIRST_EXTREME_LOOKBACK)
+lowestLowN = ta.lowest(low[2], FIRST_EXTREME_LOOKBACK)
+
+// Because condition3 already enforces similar edge highs/lows, check either edge touches the extreme
+atTop = (high >= highestHighN) or (high[2] >= highestHighN)
+atBottom = (low <= lowestLowN) or (low[2] <= lowestLowN)
+condition5 = atTop or atBottom
+
 // Mark found pattern with a red arrow above the third candle
-plotshape(condition1 and condition2 and condition3, title="Cond123", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C123")
+plotshape(condition1 and condition2 and condition3 and condition4 and condition5, title="Cond12345", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C12345")
 
