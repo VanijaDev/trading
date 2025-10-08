@@ -3,7 +3,8 @@
 // 
 // ✅ Conditions:
 // ✅ three candles with the first & last in opposite directions (one bullish, another bearish or vise versa).
-// - small tails for the first and last candles
+// ✅ small tails for the first and last candles
+// ✅ the first and the third candle's high & low must approximately the same
 // - the entire size of the middle candle must be small compared to the first & last candles
 // - this pattern must be on top / bottom (last "n" candles)
 // - mark the pattern below if bullish / above if bearish
@@ -16,6 +17,8 @@ indicator("Two Big Candles with Small Between", overlay=true, shorttitle="2C Doj
 // Condition 1 constant
 // ------------------------
 EDGE_CANDLES_SIZE_MAX_DIFF_PCT = 20.0  // Max allowed percentage difference between first and third candles' total ranges (high-low)
+EDGE_TAIL_MAX_PCT = 10.0               // Each tail (upper/lower) must be <= this % of its candle total range
+EDGE_HILO_MAX_DIFF_PCT = 10.0          // Allowed % difference between first & third highs/lows relative to larger edge range
 
 // ------------------------
 // Three-candle window: first = bar[2], middle = bar[1], third = current bar
@@ -37,6 +40,30 @@ endsSimilar = endsBigger > 0 ? ((endsBigger - endsSmaller) / endsBigger) * 100.0
 // Condition 1
 condition1 = oppositeEnds and endsSimilar
 
+// ------------------------
+// Condition 2: Small tails for the first and last candles
+// ------------------------
+upperTailFirst = high[2] - math.max(open[2], close[2])
+lowerTailFirst = math.min(open[2], close[2]) - low[2]
+upperTailThird = high - math.max(open, close)
+lowerTailThird = math.min(open, close) - low
+
+tailLimitFirst = sizeFirst * (EDGE_TAIL_MAX_PCT / 100.0)
+tailLimitThird = sizeThird * (EDGE_TAIL_MAX_PCT / 100.0)
+
+tailsOkFirst = (sizeFirst > 0) and (upperTailFirst <= tailLimitFirst) and (lowerTailFirst <= tailLimitFirst)
+tailsOkThird = (sizeThird > 0) and (upperTailThird <= tailLimitThird) and (lowerTailThird <= tailLimitThird)
+
+condition2 = tailsOkFirst and tailsOkThird
+
+// ------------------------
+// Condition 3: First & third candle highs and lows approximately the same
+// ------------------------
+hiDiff = math.abs(high - high[2])
+loDiff = math.abs(low - low[2])
+hiLoThreshold = endsBigger * (EDGE_HILO_MAX_DIFF_PCT / 100.0)
+condition3 = (hiDiff <= hiLoThreshold) and (loDiff <= hiLoThreshold)
+
 // Mark found pattern with a red arrow above the third candle
-plotshape(condition1, title="Cond1", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C1")
+plotshape(condition1 and condition2 and condition3, title="Cond123", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C123")
 
