@@ -1,0 +1,42 @@
+// Description:
+// - Two big candles of opposite directions with a small Doji in between.
+// 
+// ✅ Conditions:
+// ✅ three candles with the first & last in opposite directions (one bullish, another bearish or vise versa).
+// - small tails for the first and last candles
+// - the entire size of the middle candle must be small compared to the first & last candles
+// - this pattern must be on top / bottom (last "n" candles)
+// - mark the pattern below if bullish / above if bearish
+
+
+//@version=6
+indicator("Two Big Candles with Small Between", overlay=true, shorttitle="2C Doji")
+
+// ------------------------
+// Condition 1 constant
+// ------------------------
+EDGE_CANDLES_SIZE_MAX_DIFF_PCT = 20.0  // Max allowed percentage difference between first and third candles' total ranges (high-low)
+
+// ------------------------
+// Three-candle window: first = bar[2], middle = bar[1], third = current bar
+// ------------------------
+sizeFirst = high[2] - low[2]
+sizeThird = high - low
+
+bullFirst = close[2] > open[2]
+bullThird = close > open
+
+// First and third must be opposite directions
+oppositeEnds = (bullFirst and (not bullThird)) or ((not bullFirst) and bullThird)
+
+// Total range similarity within EDGE_CANDLES_SIZE_MAX_DIFF_PCT (relative to the larger range)
+endsBigger = math.max(sizeFirst, sizeThird)
+endsSmaller = math.min(sizeFirst, sizeThird)
+endsSimilar = endsBigger > 0 ? ((endsBigger - endsSmaller) / endsBigger) * 100.0 <= EDGE_CANDLES_SIZE_MAX_DIFF_PCT : false
+
+// Condition 1
+condition1 = oppositeEnds and endsSimilar
+
+// Mark found pattern with a red arrow above the third candle
+plotshape(condition1, title="Cond1", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="C1")
+
