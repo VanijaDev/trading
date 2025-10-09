@@ -1,0 +1,56 @@
+// Description:
+// - two pin or doji in a row
+// ✅ Conditions:
+// ✅ two pin or doji in a row (within a small tolerance)
+// ✅ mark the pattern below if bullish / above if bearish
+// ✅ this pattern must be on top / bottom (last "n" candles)
+
+
+//@version=6
+indicator("Two Pin or Doji in a Row", overlay=true, shorttitle="2PinDoji")
+
+// Config
+PIN_BODY_MAX_PCT = 20.0     // Max body as % of total range to consider a pin bar
+PIN_TAIL_MIN_PCT = 60.0     // Min longer tail as % of total range
+DOJI_BODY_MAX      = 10.0    // Max absolute body size for doji (price units)
+PIN_SIZE_LOOKBACK  = 10      // First candle (pin) range must be >= each of the last N candles before it
+PATTERN_TOP_BOTTOM_LOOKBACK = 20 // Pattern must be on a top/bottom within the last N candles
+
+// Helpers
+rangePrev = high[1] - low[1]
+bodyPrev  = math.abs(close[1] - open[1])
+upperTailPrev = high[1] - math.max(open[1], close[1])
+lowerTailPrev = math.min(open[1], close[1]) - low[1]
+
+rangeCur = high - low
+bodyCur  = math.abs(close - open)
+bullCur = close > open
+
+// First candle range must be >= the max range of the previous N candles before it
+maxRangeBeforePrev = ta.highest(high[2] - low[2], PIN_SIZE_LOOKBACK)
+pinBeatsLookback   = rangePrev >= maxRangeBeforePrev
+
+// Pin bar definition: small body relative to range AND one tail dominates
+smallBodyPrev = rangePrev > 0 and (bodyPrev / rangePrev * 100.0) <= PIN_BODY_MAX_PCT
+longUpperPrev = rangePrev > 0 and (upperTailPrev / rangePrev * 100.0) >= PIN_TAIL_MIN_PCT
+longLowerPrev = rangePrev > 0 and (lowerTailPrev / rangePrev * 100.0) >= PIN_TAIL_MIN_PCT
+isPinPrev = smallBodyPrev and (longUpperPrev or longLowerPrev)
+
+// Doji definition for current bar
+isDojiCur = bodyCur <= DOJI_BODY_MAX
+
+// Second candle must be within the high & low of the first
+insidePrev = (high <= high[1]) and (low >= low[1])
+
+// Top/Bottom check across last N candles
+highestHighN = ta.highest(high[1], PATTERN_TOP_BOTTOM_LOOKBACK)
+lowestLowN = ta.lowest(low[1], PATTERN_TOP_BOTTOM_LOOKBACK)
+atTop = high[1] >= highestHighN
+atBottom = low[1] <= lowestLowN
+
+// Final pattern: first pin (and large vs lookback), second doji, inside prev range, and at top/bottom
+pattern = isPinPrev and isDojiCur and pinBeatsLookback and insidePrev and (atTop or atBottom)
+
+// Mark with a red arrow: below if bullish, above if bearish
+plotshape(pattern and bullCur, title="Pin->Doji Bull", location=location.belowbar, style=shape.arrowup, color=color.new(color.red, 0), size=size.tiny, text="PD")
+plotshape(pattern and not bullCur, title="Pin->Doji Bear", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red, 0), size=size.tiny, text="PD")
