@@ -1,0 +1,12 @@
+// Description:
+// - two bars bigger then smaller with tails and no tails (reverse pattern)
+// ✅ 
+// Conditions:
+// - 2 candles: bigger then smaller, second must be within the first size (lower high and higher low)
+// - candles must be of opposite directions (one bullish, another bearish or vise versa)
+// - both candles must have tails on one side and no tails on the other side
+// - this pattern must be on top / bottom (last "n" candles)
+// - mark the pattern below if bullish / above if bearish
+
+
+//@version=6
