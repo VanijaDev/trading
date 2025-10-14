@@ -1,0 +1,19 @@
+//@version=6
+indicator(title="2 EMA", shorttitle="2 EMA", overlay=true)
+
+// --- Inputs (lengths & styling)
+emaFastLen = input.int(50, minval=1, title="Fast EMA Length")
+emaSlowLen = input.int(200, minval=1, title="Slow EMA Length")
+lineWidth = input.int(1, minval=1, maxval=5, title="Line Width")
+
+// --- Color Inputs
+emaFastColor = input.color(defval=color.new(color.red, 0), title="Fast EMA Color")
+emaSlowColor = input.color(defval=color.new(color.blue, 0), title="Slow EMA Color")
+
+// --- Calculations
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+
+// --- Plot
+plot(emaFast, title="EMA Fast", color=emaFastColor, linewidth=lineWidth)
+plot(emaSlow, title="EMA Slow", color=emaSlowColor, linewidth=lineWidth)
