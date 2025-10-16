@@ -1,12 +1,12 @@
 // Description:
 // - two bars bigger then smaller with tails and no tails (reverse pattern)
 // ✅ 
-// Conditions:
+// ✅ Conditions:
 // ✅ 2 candles: bigger then smaller, second must be within the first size (lower high and higher low)
 // ✅ candles must be of opposite directions (one bullish, another bearish or vise versa)
 // ✅ both candles must have tails on one side and no tails on the other side
-// - this pattern must be on top / bottom (last "n" candles)
-// - mark the pattern below if bullish / above if bearish
+// ✅ this pattern must be on top / bottom (last "n" candles)
+// ✅ mark the pattern below if bullish / above if bearish
 
 
 //@version=6
@@ -20,6 +20,7 @@ indicator(title="2C Bigger Then Smaller (Inside)", shorttitle="2C B>S Inside", o
 
 // --- Constants
 const float NO_TAIL_MAX = 30.0  // max allowed tail (price units) on the "no tail" side; increase if you want to allow tiny wicks
+const int   TOP_BOTTOM_LOOKBACK = 20  // pattern must occur at top/bottom of the last N candles
 
 // --- Helpers
 isBullPrev = close[1] > open[1]
@@ -46,10 +47,19 @@ bothUpperSide = (prevUpperTail > NO_TAIL_MAX) and (curUpperTail > NO_TAIL_MAX) a
 bothLowerSide = (prevLowerTail > NO_TAIL_MAX) and (curLowerTail > NO_TAIL_MAX) and (prevUpperTail <= NO_TAIL_MAX) and (curUpperTail <= NO_TAIL_MAX)
 tailsCondition = bothUpperSide or bothLowerSide
 
-pattern = oppositeDir and curInsidePrev and tailsCondition
+corePattern = oppositeDir and curInsidePrev and tailsCondition
 
-// --- Plot: arrow above the combination (on the second/current candle)
-plotshape(pattern, title="2C B>S Inside", style=shape.arrowdown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small, text="2C")
+// --- Top/Bottom gating (first candle must be the extreme in last N)
+highestHighPrevN = ta.highest(high, TOP_BOTTOM_LOOKBACK)[1]
+lowestLowPrevN   = ta.lowest(low, TOP_BOTTOM_LOOKBACK)[1]
+atTopPrev    = high[1] >= highestHighPrevN
+atBottomPrev = low[1]  <= lowestLowPrevN
+
+pattern = corePattern and (atTopPrev or atBottomPrev)
+
+// --- Plot: below if bullish current, above if bearish current
+plotshape(pattern and isBullCur, title="2C B>S Inside (Bull)", style=shape.arrowup,   location=location.belowbar, color=color.new(color.teal, 0),   size=size.small, text="2C")
+plotshape(pattern and not isBullCur, title="2C B>S Inside (Bear)", style=shape.arrowdown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small, text="2C")
 
 // --- Alert
 alertcondition(pattern, title="2C Bigger>Smaller Inside (Opposite)", message="Two-candle pattern: prev bigger, cur smaller inside, opposite directions.")
