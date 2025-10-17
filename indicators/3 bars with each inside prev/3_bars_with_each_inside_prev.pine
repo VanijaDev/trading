@@ -1,0 +1,37 @@
+// Description:
+// - 3 bars with each inside prev
+// ✅ 
+//  Conditions:
+//  3 candles: next inside previous (lower high and higher low)
+// check for breakout after the pattern (?)
+
+
+//@version=6
+indicator(title="3C Inside Bars", shorttitle="3C Inside", overlay=true)
+
+// We detect a chain of inside bars using only completed candles.
+// Bar indexing used:
+//   B3 = bar[3] (oldest in the trio)
+//   B2 = bar[2]
+//   B1 = bar[1] (most recent closed bar)
+// Requirement: B2 inside B3 AND B1 inside B2
+
+// Use helper function for inside check (strict)
+f_inside(hChild, lChild, hParent, lParent) =>
+	(hChild < hParent) and (lChild > lParent)
+
+// Define the three bars
+h3 = high[3], l3 = low[3]
+h2 = high[2], l2 = low[2]
+h1 = high[1], l1 = low[1]
+
+inside2in3 = f_inside(h2, l2, h3, l3)
+inside1in2 = f_inside(h1, l1, h2, l2)
+
+pattern = inside2in3 and inside1in2
+
+// Plot an arrow on bar[1] (the third confirmed bar of the pattern)
+plotshape(pattern, title="3C Inside", style=shape.triangledown, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny, text="3C", offset=-1)
+
+// Alert for the completed pattern
+alertcondition(pattern, title="3C Inside Bars", message="3-candle inside pattern (B1 inside B2, B2 inside B3)")
