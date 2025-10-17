@@ -1,9 +1,8 @@
 // Description:
 // - 3 bars with each inside prev
 // ✅ 
-//  Conditions:
-//  3 candles: next inside previous (lower high and higher low)
-// check for breakout after the pattern (?)
+// ✅ Conditions:
+// ✅ 3 candles: next inside previous (lower high and higher low)
 
 
 //@version=6
