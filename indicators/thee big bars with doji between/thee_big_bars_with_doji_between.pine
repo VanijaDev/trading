@@ -1,0 +1,12 @@
+// Description:
+// - 3 big bars with Doji or Pin between them
+// ✅ 
+//  Conditions:
+// 3 candles with Doji or Pin bar in the middle
+// edge candles must be big and of opposite directions (one bullish, another bearish or vise versa).
+// edge candles must have small tails
+// Mark the pattern below if bullish / above if bearish
+
+
+//@version=6
+indicator(title="3C Inside Bars", shorttitle="3C Inside", overlay=true)
