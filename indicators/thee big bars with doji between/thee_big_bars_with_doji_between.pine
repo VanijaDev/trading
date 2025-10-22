@@ -5,6 +5,7 @@
 // ✅ 3 candles with Doji or Pin bar in the middle
 // ✅ edge candles must be big and of opposite directions (one bullish, another bearish or vise versa).
 // ✅ edge candles must have small tails
+// ✅ the first and the third candle's high & low must approximately the same
 // ✅ Mark the pattern below if bullish / above if bearish
 
 
@@ -14,8 +15,9 @@ indicator(title="Doji/Pin Middle with Clean Sides", shorttitle="DojiMid + CleanS
 // We ignore the current (forming) candle and evaluate the last closed bar only.
 
 // --- Constants
-const float MID_BODY_MAX_PCT   = 15.0  // Body <= this % of the bar's full range (high-low) for middle Doji
-const float SIDE_TAIL_MAX_PCT  = 20.0  // Each tail (upper & lower) on side bars must be <= this % of that bar's range
+const float MID_BODY_MAX_PCT       = 15.0  // Body <= this % of the bar's full range (high-low) for middle Doji
+const float SIDE_TAIL_MAX_PCT      = 20.0  // Each tail (upper & lower) on side bars must be <= this % of that bar's range
+const float SIDE_SIZE_MAX_DIFF_PCT = 15.0  // Max allowed % difference between LEFT and RIGHT bar ranges
 
 // --- Middle bar metrics (bar[2])
 midOpen = open[2]
@@ -64,7 +66,12 @@ rightCleanTails = (rightUpperPct <= SIDE_TAIL_MAX_PCT) and (rightLowerPct <= SID
 
 cleanOppositeSides = oppositeSides and leftCleanTails and rightCleanTails
 
-pattern = isDojiPrev and cleanOppositeSides
+// Side-size similarity (range-based)
+rangeDenom   = math.max(leftRange, rightRange)
+sizeDiffPct  = rangeDenom > 0 ? (math.abs(leftRange - rightRange) / rangeDenom) * 100.0 : 0.0
+similarSideSizes = rangeDenom > 0 and (sizeDiffPct <= SIDE_SIZE_MAX_DIFF_PCT)
+
+pattern = isDojiPrev and cleanOppositeSides and similarSideSizes
 
 // --- Plot: below if bullish right bar, above if bearish right bar (marker on bar[1])
 plotshape(pattern and isBullRight, title="Doji Mid + Clean Sides (Bull)", style=shape.arrowup, location=location.belowbar, color=color.new(color.teal, 0), size=size.small, text="Doji Mid", offset=-1)
