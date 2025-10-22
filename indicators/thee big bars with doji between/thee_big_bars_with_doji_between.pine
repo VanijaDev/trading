@@ -2,11 +2,72 @@
 // - 3 big bars with Doji or Pin between them
 // ✅ 
 //  Conditions:
-// 3 candles with Doji or Pin bar in the middle
+// ✅ 3 candles with Doji or Pin bar in the middle
 // edge candles must be big and of opposite directions (one bullish, another bearish or vise versa).
 // edge candles must have small tails
 // Mark the pattern below if bullish / above if bearish
 
 
 //@version=6
-indicator(title="3C Inside Bars", shorttitle="3C Inside", overlay=true)
+indicator(title="Doji/Pin Middle with Clean Sides", shorttitle="DojiMid + CleanSides", overlay=true)
+
+// We ignore the current (forming) candle and evaluate the last closed bar only.
+
+// --- Constants
+const float MID_BODY_MAX_PCT   = 15.0  // Body <= this % of the bar's full range (high-low) for middle Doji
+const float SIDE_TAIL_MAX_PCT  = 20.0  // Each tail (upper & lower) on side bars must be <= this % of that bar's range
+
+// --- Middle bar metrics (bar[2])
+midOpen = open[2]
+midClose = close[2]
+midHigh = high[2]
+midLow = low[2]
+
+midRange = midHigh - midLow
+midBody  = math.abs(midClose - midOpen)
+midBodyPct = midRange > 0 ? (midBody / midRange) * 100.0 : 0.0
+
+isDojiPrev = (midRange > 0) and (midBodyPct <= MID_BODY_MAX_PCT)
+
+// --- Side bars: left = bar[3], right = bar[1]
+leftOpen  = open[3]
+leftClose = close[3]
+leftHigh  = high[3]
+leftLow   = low[3]
+
+rightOpen  = open[1]
+rightClose = close[1]
+rightHigh  = high[1]
+rightLow   = low[1]
+
+// Direction: sides must be opposite (exclude dojis)
+isBullLeft  = leftClose > leftOpen
+isBullRight = rightClose > rightOpen
+hasDirLeft  = leftClose != leftOpen
+hasDirRight = rightClose != rightOpen
+oppositeSides = hasDirLeft and hasDirRight and (isBullLeft != isBullRight)
+
+// Tail percentages for sides
+leftRange = leftHigh - leftLow
+leftUpper = leftHigh - math.max(leftOpen, leftClose)
+leftLower = math.min(leftOpen, leftClose) - leftLow
+leftUpperPct = leftRange > 0 ? (leftUpper / leftRange) * 100.0 : 100.0
+leftLowerPct = leftRange > 0 ? (leftLower / leftRange) * 100.0 : 100.0
+leftCleanTails = (leftUpperPct <= SIDE_TAIL_MAX_PCT) and (leftLowerPct <= SIDE_TAIL_MAX_PCT)
+
+rightRange = rightHigh - rightLow
+rightUpper = rightHigh - math.max(rightOpen, rightClose)
+rightLower = math.min(rightOpen, rightClose) - rightLow
+rightUpperPct = rightRange > 0 ? (rightUpper / rightRange) * 100.0 : 100.0
+rightLowerPct = rightRange > 0 ? (rightLower / rightRange) * 100.0 : 100.0
+rightCleanTails = (rightUpperPct <= SIDE_TAIL_MAX_PCT) and (rightLowerPct <= SIDE_TAIL_MAX_PCT)
+
+cleanOppositeSides = oppositeSides and leftCleanTails and rightCleanTails
+
+pattern = isDojiPrev and cleanOppositeSides
+
+// --- Plot: mark the previous bar with an arrow; we use offset=-1 to place it over bar[1]
+plotshape(pattern, title="Doji Pin Mid + Clean Sides", style=shape.arrowdown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small, text="Doji Pin Mid", offset=-1)
+
+// --- Alert for a detected Doji on the previous candle
+alertcondition(pattern, title="Doji Middle with Clean Opposite Sides", message="Middle Doji with opposite-direction side bars and small tails (<= ${SIDE_TAIL_MAX_PCT}% of range)")
