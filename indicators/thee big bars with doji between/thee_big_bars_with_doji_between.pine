@@ -3,9 +3,9 @@
 // ✅ 
 //  Conditions:
 // ✅ 3 candles with Doji or Pin bar in the middle
-// edge candles must be big and of opposite directions (one bullish, another bearish or vise versa).
-// edge candles must have small tails
-// Mark the pattern below if bullish / above if bearish
+// ✅ edge candles must be big and of opposite directions (one bullish, another bearish or vise versa).
+// ✅ edge candles must have small tails
+// ✅ Mark the pattern below if bullish / above if bearish
 
 
 //@version=6
@@ -66,8 +66,6 @@ cleanOppositeSides = oppositeSides and leftCleanTails and rightCleanTails
 
 pattern = isDojiPrev and cleanOppositeSides
 
-// --- Plot: mark the previous bar with an arrow; we use offset=-1 to place it over bar[1]
-plotshape(pattern, title="Doji Pin Mid + Clean Sides", style=shape.arrowdown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small, text="Doji Pin Mid", offset=-1)
-
-// --- Alert for a detected Doji on the previous candle
-alertcondition(pattern, title="Doji Middle with Clean Opposite Sides", message="Middle Doji with opposite-direction side bars and small tails (<= ${SIDE_TAIL_MAX_PCT}% of range)")
+// --- Plot: below if bullish right bar, above if bearish right bar (marker on bar[1])
+plotshape(pattern and isBullRight, title="Doji Mid + Clean Sides (Bull)", style=shape.arrowup, location=location.belowbar, color=color.new(color.teal, 0), size=size.small, text="Doji Mid", offset=-1)
+plotshape(pattern and not isBullRight, title="Doji Mid + Clean Sides (Bear)", style=shape.arrowdown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small, text="Doji Mid", offset=-1)
