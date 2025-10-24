@@ -11,15 +11,19 @@
 //@version=6
 indicator(title="Indicator Monolith", shorttitle="Ind Mono", overlay=true)
 
+//*********************************************//
+//                 INPUTS                      //
+//*********************************************//
+show_3cInside = input.bool(true, title="Show 3C Inside pattern")
+
 
 //*********************************************//
 //         HELPER FUNCTIONS                    //
-//   (avoid plotting inside functions)         //
 //*********************************************//
 
 // Use helper function for inside check (strict)
-_inside(hChild, lChild, hParent, lParent) =>
-	(hChild < hParent) and (lChild > lParent)
+_inside(highChild, lowChild, highParent, lowParent) =>
+	(highChild < highParent) and (lowChild > lowParent)
 
 
 //*********************************************//
@@ -47,4 +51,4 @@ three_inside_indicator() =>
 //*********************************************//
 
 pattern_3cInside = three_inside_indicator()
-plotshape(series=pattern_3cInside, title="3C Inside", style=shape.triangledown, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny, text="3C Inside")
+plotshape(series=(show_3cInside and pattern_3cInside), title="3C Inside", style=shape.triangledown, location=location.abovebar, color=color.blue, size=size.tiny, text="3C Inside", offset=-1)
