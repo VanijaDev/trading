@@ -30,6 +30,7 @@ _inside(highChild, lowChild, highParent, lowParent) =>
 //           INDICATOR IMPLEMENTATIONS         //
 //*********************************************//
 
+// 1
 // --- 3 candles each inside previous ---
 //			Description:
 //    		- 3 candles: next inside previous (lower high and higher low)
@@ -45,6 +46,8 @@ three_inside_indicator() =>
 
 	inside2in3 and inside1in2
 
+
+// 2
 
 //*********************************************//
 //           CALL & DRAW INDICATORS            //
