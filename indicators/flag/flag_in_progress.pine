@@ -1,0 +1,112 @@
+//@version=6
+indicator(title="Flag Pattern (Bull/Bear)", shorttitle="Flag", overlay=true)
+
+// Notes
+// - Evaluates only completed candles: breakout and signals are computed on bar[1]
+// - Uses a simple, robust definition:
+//   Pole: strong directional move over `poleLen` bars ending right before the flag
+//   Flag: tight consolidation over `flagLen` bars with small slope/range
+//   Breakout: bar[1] closes beyond the flag channel in the pole's direction
+
+//============================
+// Inputs
+//============================
+show_bull      = input.bool(true,  title="Show Bull Flags")
+show_bear      = input.bool(true,  title="Show Bear Flags")
+requireBreakout= input.bool(true,  title="Require Breakout Close (on bar[1])")
+
+poleLen        = input.int(8,   minval=2,  title="Pole length (bars)")
+flagLen        = input.int(5,   minval=2,  title="Flag length (bars)")
+minPolePct     = input.float(3.0, minval=0.1, title="Min pole change %")
+maxFlagRangePct= input.float(2.0, minval=0.1, title="Max flag range % (of close)")
+maxFlagSlopePP = input.float(0.25, minval=0.01, title="Max flag slope % per bar (abs)")
+minUpFrac      = input.float(0.6, minval=0.0, maxval=1.0, title="Min up-bar fraction in bull pole")
+minDnFrac      = input.float(0.6, minval=0.0, maxval=1.0, title="Min down-bar fraction in bear pole")
+
+clrBull        = input.color(color.new(color.lime, 0), title="Bull marker color")
+clrBear        = input.color(color.new(color.red,  0), title="Bear marker color")
+shapeSize      = input.string("tiny", title="Shape size", options=["tiny","small","normal","large"], tooltip="Plot shape size")
+
+// Map string to size enum
+_size(str) =>
+	// str == "tiny"  ? size.tiny  : size.normal
+	// str == "small" ? size.small : size.normal
+	// str == "large" ? size.large : size.normal
+  size.normal
+
+//============================
+// Helpers (private)
+//============================
+_pctChange(_from, _to) => (_to - _from) / _from * 100.0
+_sumTrue(_cond, _len) => math.sum(_cond ? 1 : 0, _len)
+
+// Convert max slope % per bar into price units based on reference price
+_maxSlopeAbs(refClose) => (maxFlagSlopePP/100.0) * refClose
+
+//============================
+// Windows (all relative to last closed bar [1])
+//============================
+// Flag window: bars [2 .. flagLen+1]
+upperFlag = ta.highest(high[2], flagLen)
+lowerFlag = ta.lowest(low[2],  flagLen)
+flagRange = upperFlag - lowerFlag
+flagRangePct = na(close[1]) ? na : (flagRange / close[1] * 100.0)
+
+// Flag slope (fallback): approximate LR slope as the delta between consecutive linreg values on bar[1]
+flagSlope = (ta.linreg(close, flagLen, 0)[1] - ta.linreg(close, flagLen, 1)[1])
+flagSlopeAbsOK = math.abs(flagSlope) <= _maxSlopeAbs(close[1])
+flagRangeOK    = flagRangePct <= maxFlagRangePct
+
+// Pole window ends at bar[1+flagLen], starts at bar[1+flagLen+poleLen]
+poleEndClose   = close[1 + flagLen]
+poleStartClose = close[1 + flagLen + poleLen]
+
+// Count up/down bars inside the pole window
+upBar = close > close[1]
+dnBar = close < close[1]
+upCount   = _sumTrue(upBar[1 + flagLen], poleLen)
+downCount = _sumTrue(dnBar[1 + flagLen], poleLen)
+
+// Change over pole window
+poleChangePct = _pctChange(poleStartClose, poleEndClose)
+
+// Bar availability guard
+enoughBars = bar_index > (flagLen + poleLen + 5)
+
+//============================
+// Conditions
+//============================
+// Bull pole: strong up move and majority up bars
+bullPole = enoughBars and (poleChangePct >= minPolePct) and (upCount >= minUpFrac * poleLen)
+// Bear pole: strong down move and majority down bars
+bearPole = enoughBars and (poleChangePct <= -minPolePct) and (downCount >= minDnFrac * poleLen)
+
+// Flag consolidation quality
+flagOK = enoughBars and flagRangeOK and flagSlopeAbsOK
+
+// Breakouts on bar[1]
+breakoutBull = close[1] > upperFlag
+breakoutBear = close[1] < lowerFlag
+
+bullFlagCore = bullPole and flagOK
+bearFlagCore = bearPole and flagOK
+
+bullFlag = bullFlagCore and (requireBreakout ? breakoutBull : true)
+bearFlag = bearFlagCore and (requireBreakout ? breakoutBear : true)
+
+//============================
+// Plotting
+//============================
+plotshape(series=(show_bull and bullFlag), title="Bull Flag", style=shape.triangleup,   location=location.belowbar, color=clrBull, size=_size(shapeSize), text="Bull Flag", offset=-1)
+plotshape(series=(show_bear and bearFlag), title="Bear Flag", style=shape.triangledown, location=location.abovebar, color=clrBear, size=_size(shapeSize), text="Bear Flag", offset=-1)
+
+// Channel guide (optional): visualize flag bounds
+showBands = input.bool(false, title="Show flag channel (guides)")
+plot(showBands ? upperFlag : na, title="Upper Flag", color=color.new(color.gray, 60), linewidth=1, style=plot.style_linebr, offset=-1)
+plot(showBands ? lowerFlag : na, title="Lower Flag", color=color.new(color.gray, 60), linewidth=1, style=plot.style_linebr, offset=-1)
+
+//============================
+// Alerts
+//============================
+alertcondition(show_bull and bullFlag, title="Bull Flag", message="Bull Flag detected (confirmed on bar[1])")
+alertcondition(show_bear and bearFlag, title="Bear Flag", message="Bear Flag detected (confirmed on bar[1])")
