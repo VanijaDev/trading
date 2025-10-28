@@ -102,5 +102,5 @@ plotshape(series=(show_3cInside and pattern_3cInside), title="3C Inside", style=
 
 // Compute same-level pattern booleans and draw on the last closed bar (bar[1])
 [pattern_3cSame_atTop, pattern_3cSame_atBottom] = three_same_level_indicator()
-plotshape(series=pattern_3cSame_atBottom, title="3C Same Low",  location=location.belowbar, style=shape.arrowup,   color=color.new(color.green, 0), size=size.tiny, text="3C L", offset=-1)
-plotshape(series=pattern_3cSame_atTop,    title="3C Same High", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red,   0), size=size.tiny, text="3C H", offset=-1)
+plotshape(series=pattern_3cSame_atBottom, title="3C Same Low",  location=location.belowbar, style=shape.triangleup,   color=color.new(color.blue, 0), size=size.tiny, text="3C L", offset=-1)
+plotshape(series=pattern_3cSame_atTop,    title="3C Same High", location=location.abovebar, style=shape.triangledown, color=color.new(color.blue,   0), size=size.tiny, text="3C H", offset=-1)
