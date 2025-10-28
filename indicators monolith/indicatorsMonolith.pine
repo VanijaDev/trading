@@ -4,8 +4,9 @@
 // A single file to implement multiple simple indicators.
 // Always ignore the current (forming) candle and evaluate only completed candles.
 
-// Indicators Implemented (1):
+// Indicators Implemented (2):
 // - 3 candles each inside previous
+// - 3 candles on same high or low
 
 
 //@version=6
@@ -31,9 +32,9 @@ _inside(highChild, lowChild, highParent, lowParent) =>
 //*********************************************//
 
 // 1
-// --- 3 candles each inside previous ---
-//			Description:
-//    		- 3 candles: next inside previous (lower high and higher low)
+// Three candles each inside previous ---
+//		Description:
+//    	- 3 candles: next inside previous (lower high and higher low)
 
 three_inside_indicator() =>
 	// Define the three bars
@@ -48,6 +49,49 @@ three_inside_indicator() =>
 
 
 // 2
+// Three Candles on Same High or Low
+
+// Dedicated function: returns (atTop, atBottom) using only closed bars
+three_same_level_indicator() =>
+	// Constants kept alongside implementation
+	const float SAME_LEVEL_TOLERANCE = 125.0
+	const int   PATTERN_TOP_BOTTOM_LOOKBACK = 10
+	const float MAX_TOP_LOW_TAIL = 20.0
+
+	// Work strictly with completed candles (bars [1], [2], [3])
+	h1 = high[1], h2 = high[2], h3 = high[3]
+	l1 = low[1],  l2 = low[2],  l3 = low[3]
+
+	// Same high across three closed bars
+	hMax = math.max(h1, math.max(h2, h3))
+	hMin = math.min(h1, math.min(h2, h3))
+	sameHigh = (hMax - hMin) <= SAME_LEVEL_TOLERANCE
+
+	// Same low across three closed bars
+	lMax = math.max(l1, math.max(l2, l3))
+	lMin = math.min(l1, math.min(l2, l3))
+	sameLow = (lMax - lMin) <= SAME_LEVEL_TOLERANCE
+
+	// Top/bottom check across last N completed candles
+	highestHighN = ta.highest(high[1], PATTERN_TOP_BOTTOM_LOOKBACK)
+	lowestLowN   = ta.lowest(low[1],  PATTERN_TOP_BOTTOM_LOOKBACK)
+
+	// Side tails for the three closed bars
+	u1 = h1 - math.max(open[1], close[1])
+	u2 = h2 - math.max(open[2], close[2])
+	u3 = h3 - math.max(open[3], close[3])
+	l1t = math.min(open[1], close[1]) - l1
+	l2t = math.min(open[2], close[2]) - l2
+	l3t = math.min(open[3], close[3]) - l3
+
+	tailsOkTop = (u1 <= MAX_TOP_LOW_TAIL) and (u2 <= MAX_TOP_LOW_TAIL) and (u3 <= MAX_TOP_LOW_TAIL)
+	tailsOkLow = (l1t <= MAX_TOP_LOW_TAIL) and (l2t <= MAX_TOP_LOW_TAIL) and (l3t <= MAX_TOP_LOW_TAIL)
+
+	// Final conditions
+	atTop = sameHigh and tailsOkTop and (hMax >= highestHighN)
+	atBottom = sameLow and tailsOkLow and (lMin <= lowestLowN)
+
+	[atTop, atBottom]
 
 //*********************************************//
 //           CALL & DRAW INDICATORS            //
@@ -55,3 +99,8 @@ three_inside_indicator() =>
 
 pattern_3cInside = three_inside_indicator()
 plotshape(series=(show_3cInside and pattern_3cInside), title="3C Inside", style=shape.triangledown, location=location.abovebar, color=color.blue, size=size.tiny, text="3C Inside", offset=-1)
+
+// Compute same-level pattern booleans and draw on the last closed bar (bar[1])
+[pattern_3cSame_atTop, pattern_3cSame_atBottom] = three_same_level_indicator()
+plotshape(series=pattern_3cSame_atBottom, title="3C Same Low",  location=location.belowbar, style=shape.arrowup,   color=color.new(color.green, 0), size=size.tiny, text="3C L", offset=-1)
+plotshape(series=pattern_3cSame_atTop,    title="3C Same High", location=location.abovebar, style=shape.arrowdown, color=color.new(color.red,   0), size=size.tiny, text="3C H", offset=-1)
