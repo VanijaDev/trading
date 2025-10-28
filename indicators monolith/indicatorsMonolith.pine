@@ -32,7 +32,7 @@ _inside(highChild, lowChild, highParent, lowParent) =>
 //*********************************************//
 
 // 1
-// Three candles each inside previous ---
+// Three candles each inside previous
 //		Description:
 //    	- 3 candles: next inside previous (lower high and higher low)
 
@@ -50,13 +50,20 @@ three_inside_indicator() =>
 
 // 2
 // Three Candles on Same High or Low
+// 	Description:
+// 		- Three candles on the same high or low
+// 	Conditions:
+//		- three candles on the same high or low (within a small tolerance)
+//		- mark the pattern below if bullish / above if bearish
+//		- this pattern must be on top / bottom (last "n" candles)
+//		- small tails on the same level
 
 // Dedicated function: returns (atTop, atBottom) using only closed bars
 three_same_level_indicator() =>
 	// Constants kept alongside implementation
-	const float SAME_LEVEL_TOLERANCE = 125.0
+	const float SAME_LEVEL_TOLERANCE = 100.0
 	const int   PATTERN_TOP_BOTTOM_LOOKBACK = 10
-	const float MAX_TOP_LOW_TAIL = 20.0
+	const float MAX_TAIL = 20.0
 
 	// Work strictly with completed candles (bars [1], [2], [3])
 	h1 = high[1], h2 = high[2], h3 = high[3]
@@ -84,8 +91,8 @@ three_same_level_indicator() =>
 	l2t = math.min(open[2], close[2]) - l2
 	l3t = math.min(open[3], close[3]) - l3
 
-	tailsOkTop = (u1 <= MAX_TOP_LOW_TAIL) and (u2 <= MAX_TOP_LOW_TAIL) and (u3 <= MAX_TOP_LOW_TAIL)
-	tailsOkLow = (l1t <= MAX_TOP_LOW_TAIL) and (l2t <= MAX_TOP_LOW_TAIL) and (l3t <= MAX_TOP_LOW_TAIL)
+	tailsOkTop = (u1 <= MAX_TAIL) and (u2 <= MAX_TAIL) and (u3 <= MAX_TAIL)
+	tailsOkLow = (l1t <= MAX_TAIL) and (l2t <= MAX_TAIL) and (l3t <= MAX_TAIL)
 
 	// Final conditions
 	atTop = sameHigh and tailsOkTop and (hMax >= highestHighN)
