@@ -114,4 +114,5 @@ plotshape(series=pattern_3cSame_atTop,    title="3C Same High", location=locatio
 
 👇👇👇👇👇👇👇👇👇👇👇👇👇
 - add user inputs
-- TODO: stack drawings one above another when they occur on the same bar 
+- TODO: stack drawings one above another when they occur on the same bar
+- next: two bars: bigger & smaller, no bottoms, tails on top - reverse pattern.
