@@ -61,7 +61,7 @@ three_inside_indicator() =>
 // Dedicated function: returns (atTop, atBottom) using only closed bars
 three_same_level_indicator() =>
 	// Constants kept alongside implementation
-	const float SAME_LEVEL_TOLERANCE = 100.0
+	const float SAME_LEVEL_TOLERANCE = 90.0
 	const int   PATTERN_TOP_BOTTOM_LOOKBACK = 10
 	const float MAX_TAIL = 20.0
 
