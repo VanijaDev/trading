@@ -1,0 +1,91 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────────────
+//  Weekly Vertical Line
+//  Draws a vertical line at a chosen day of the week + time of day, for the
+//  last N occurrences in the chart's history.
+//
+//  Placement rule: the line is drawn on the first bar that CLOSES after the
+//  scheduled moment - i.e. the bar containing that moment, or the next
+//  available bar if the market was closed then. Works on any timeframe.
+//  Lines are anchored with xloc.bar_time, so they stay put when you switch
+//  timeframes and are not subject to the 10,000-bar limit of bar indices.
+// ─────────────────────────────────────────────────────────────────────────────
+
+//@variable Pine's hard cap on line drawings per script.
+const int MAX_LINES = 500
+
+indicator("Weekly Vertical Line", "VLine", overlay = true, max_lines_count = MAX_LINES)
+
+// ──────────────────────────────── Inputs ─────────────────────────────────────
+
+const string G_WHEN = "When"
+const string G_LINE = "Line"
+
+const string TT_TZ = """Time zone used to interpret the day and time above. 'Exchange' uses the symbol's exchange
+     time zone. Note this is independent of your chart's display time zone - Pine scripts cannot read that setting,
+     so if your chart is set to a different zone, pick it explicitly here."""
+
+string dayInput = input.string("Monday", "Day of week", group = G_WHEN,
+     options = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"])
+int hourInput = input.int(9, "Hour (0-23)", minval = 0, maxval = 23, group = G_WHEN)
+int minuteInput = input.int(0, "Minute (0-59)", minval = 0, maxval = 59, group = G_WHEN)
+string tzInput = input.string("Exchange", "Time zone", group = G_WHEN, tooltip = TT_TZ,
+     options = ["Exchange", "UTC", "America/New_York", "America/Chicago", "America/Denver",
+     "America/Los_Angeles", "Europe/London", "Europe/Berlin", "Europe/Moscow", "Asia/Dubai",
+     "Asia/Kolkata", "Asia/Shanghai", "Asia/Tokyo", "Australia/Sydney"])
+
+int occurrencesInput = input.int(25, "Occurrences in past", minval = 1, maxval = MAX_LINES, group = G_LINE)
+color colorInput = input.color(color.gray, "Color", group = G_LINE)
+int widthInput = input.int(1, "Width", minval = 1, maxval = 10, group = G_LINE)
+string styleInput = input.string("Dashed", "Style", options = ["Solid", "Dashed", "Dotted"], group = G_LINE)
+
+// ───────────────────────────── Resolve settings ──────────────────────────────
+
+//@variable The time zone the day/hour/minute settings are expressed in.
+string tz = tzInput == "Exchange" ? syminfo.timezone : tzInput
+
+//@variable The selected weekday as a `dayofweek.*` value (Sunday = 1 ... Saturday = 7).
+int targetDay = switch dayInput
+    "Sunday"    => dayofweek.sunday
+    "Tuesday"   => dayofweek.tuesday
+    "Wednesday" => dayofweek.wednesday
+    "Thursday"  => dayofweek.thursday
+    "Friday"    => dayofweek.friday
+    "Saturday"  => dayofweek.saturday
+    =>             dayofweek.monday
+
+//@variable The selected line style. v6 requires a default branch when a `switch` returns a unique type.
+lineStyle = switch styleInput
+    "Solid"  => line.style_solid
+    "Dotted" => line.style_dotted
+    =>          line.style_dashed
+
+// ────────────────────────────── Line placement ───────────────────────────────
+
+//@variable UNIX time (ms) of the most recent scheduled moment seen so far.
+var int scheduledTime = na
+//@variable UNIX time (ms) of the last scheduled moment already marked with a line.
+var int markedTime = na
+//@variable Queue of lines currently on the chart, oldest first.
+var array<line> lines = array.new<line>()
+
+// On every bar falling on the selected weekday, compute that day's scheduled moment.
+// All calendar values are read in `tz`, so DST is handled by the IANA zone itself.
+if dayofweek(time, tz) == targetDay
+    int t = timestamp(tz, year(time, tz), month(time, tz), dayofmonth(time, tz), hourInput, minuteInput, 0)
+    if na(scheduledTime) or t > scheduledTime
+        scheduledTime := t
+
+//@variable The bar's closing time. `time_close` is `na` on the open bar of non-time-based charts.
+int barEnd = nz(time_close, time)
+
+// Draw once per scheduled moment, on the first bar that closes after it.
+if not na(scheduledTime) and barEnd > scheduledTime and (na(markedTime) or scheduledTime > markedTime)
+    markedTime := scheduledTime
+    //@variable Second y-coordinate. The two points must differ or the line is not rendered.
+    float yTop = high > low ? high : low + syminfo.mintick
+    line vLine = line.new(time, low, time, yTop, xloc.bar_time, extend.both, colorInput, lineStyle, widthInput)
+    lines.push(vLine)
+    // Keep only the requested number of past occurrences.
+    if lines.size() > occurrencesInput
+        line.delete(lines.shift())
