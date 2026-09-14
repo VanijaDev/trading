@@ -1,0 +1,85 @@
+//@version=6
+// =============================================================================
+// 4 MA: four configurable moving averages on one overlay
+//
+// Pine Script v6. Inputs: price source and line width, shared by all four
+// lines; MA type, length, and colour per line.
+// Each line can be shown or hidden from the Settings/Style tab.
+// =============================================================================
+
+indicator("4 MA", shorttitle = "4 MA", overlay = true)
+
+// ————— Constants —————————————————————————————————————————————————————————————
+
+// Titles for each line's input group, input row, and plot.
+string MA1_TITLE = "MA 1"
+string MA2_TITLE = "MA 2"
+string MA3_TITLE = "MA 3"
+string MA4_TITLE = "MA 4"
+
+string TYPE_TOOLTIP = "RMA is TradingView's SMMA. VWMA plots nothing on symbols with no volume data (indices, spot forex)."
+
+//@enum         Moving average types. Field titles appear in the type dropdowns.
+enum MaType
+    sma = "SMA"
+    ema = "EMA"
+    wma = "WMA"
+    rma = "RMA"
+    hma = "HMA"
+    vwma = "VWMA"
+
+// ————— Inputs ————————————————————————————————————————————————————————————————
+
+float srcInput = input.source(close, "Source", tooltip = "Price the averages are built from. Also accepts the output of another indicator on the chart.")
+int widthInput = input.int(1, "Line Width", minval = 1)
+
+MaType type1Input = input.enum(MaType.ema, "", tooltip = TYPE_TOOLTIP, inline = MA1_TITLE, group = MA1_TITLE)
+int len1Input = input.int(20, "", minval = 1, inline = MA1_TITLE, group = MA1_TITLE)
+color color1Input = input.color(color.orange, "", inline = MA1_TITLE, group = MA1_TITLE)
+
+MaType type2Input = input.enum(MaType.ema, "", tooltip = TYPE_TOOLTIP, inline = MA2_TITLE, group = MA2_TITLE)
+int len2Input = input.int(50, "", minval = 1, inline = MA2_TITLE, group = MA2_TITLE)
+color color2Input = input.color(color.red, "", inline = MA2_TITLE, group = MA2_TITLE)
+
+MaType type3Input = input.enum(MaType.ema, "", tooltip = TYPE_TOOLTIP, inline = MA3_TITLE, group = MA3_TITLE)
+int len3Input = input.int(100, "", minval = 1, inline = MA3_TITLE, group = MA3_TITLE)
+color color3Input = input.color(color.teal, "", inline = MA3_TITLE, group = MA3_TITLE)
+
+MaType type4Input = input.enum(MaType.ema, "", tooltip = TYPE_TOOLTIP, inline = MA4_TITLE, group = MA4_TITLE)
+int len4Input = input.int(200, "", minval = 1, inline = MA4_TITLE, group = MA4_TITLE)
+color color4Input = input.color(color.blue, "", inline = MA4_TITLE, group = MA4_TITLE)
+
+// ————— Calculation ———————————————————————————————————————————————————————————
+
+//@function     Moving average of `source` over `length` bars, of type `maType`.
+//@param        source  Series to average.
+//@param        length  Number of bars. Must be >= 1.
+//@param        maType  Average to calculate.
+//@returns      The moving average, or `na` where the type has no value.
+//
+// `maType` comes from an input, so it cannot change while the script runs. That
+// guarantees the same branch executes on every bar, which is what ta.ema() and
+// its siblings require, since their `length` parameter takes a "simple int".
+getMA(float source, simple int length, MaType maType) =>
+    switch maType
+        MaType.sma => ta.sma(source, length)
+        MaType.ema => ta.ema(source, length)
+        MaType.wma => ta.wma(source, length)
+        MaType.rma => ta.rma(source, length)
+        MaType.hma => ta.hma(source, length)
+        MaType.vwma => ta.vwma(source, length)
+
+float ma1 = getMA(srcInput, len1Input, type1Input)
+float ma2 = getMA(srcInput, len2Input, type2Input)
+float ma3 = getMA(srcInput, len3Input, type3Input)
+float ma4 = getMA(srcInput, len4Input, type4Input)
+
+// ————— Plots —————————————————————————————————————————————————————————————————
+
+// No `editable = false` here: that flag locks the Settings/Style tab, and the
+// show/hide checkboxes for each line live in that same tab. Colour and width are
+// still driven by the Inputs tab above; the Style tab simply duplicates them.
+plot(ma1, MA1_TITLE, color = color1Input, linewidth = widthInput)
+plot(ma2, MA2_TITLE, color = color2Input, linewidth = widthInput)
+plot(ma3, MA3_TITLE, color = color3Input, linewidth = widthInput)
+plot(ma4, MA4_TITLE, color = color4Input, linewidth = widthInput)
