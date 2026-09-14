@@ -3,7 +3,8 @@
 // 4 MA: four configurable moving averages on one overlay
 //
 // Pine Script v6. Inputs: price source and line width, shared by all four
-// lines; MA type, length, and colour per line.
+// lines; MA type, length, and colour per line; fill colours for the space
+// between MA 1 and MA 3, and between MA 2 and MA 4.
 // Each line can be shown or hidden from the Settings/Style tab.
 // =============================================================================
 
@@ -18,6 +19,13 @@ string MA3_TITLE = "MA 3"
 string MA4_TITLE = "MA 4"
 
 string TYPE_TOOLTIP = "RMA is TradingView's SMMA. VWMA plots nothing on symbols with no volume data (indices, spot forex)."
+
+// Titles for each fill's input and its Style tab entry.
+string FILL_1_3_TITLE = "MA 1 & 3 Fill"
+string FILL_2_4_TITLE = "MA 2 & 4 Fill"
+
+string FILLS_GROUP = "Fills"
+int FILL_TRANSP = 85
 
 //@enum         Moving average types. Field titles appear in the type dropdowns.
 enum MaType
@@ -49,6 +57,10 @@ MaType type4Input = input.enum(MaType.ema, "", tooltip = TYPE_TOOLTIP, inline = 
 int len4Input = input.int(200, "", minval = 1, inline = MA4_TITLE, group = MA4_TITLE)
 color color4Input = input.color(color.blue, "", inline = MA4_TITLE, group = MA4_TITLE)
 
+// Defaults: the MA 3 and MA 4 line colours at `FILL_TRANSP` transparency.
+color fill13ColorInput = input.color(color.new(color.teal, FILL_TRANSP), FILL_1_3_TITLE, group = FILLS_GROUP)
+color fill24ColorInput = input.color(color.new(color.blue, FILL_TRANSP), FILL_2_4_TITLE, group = FILLS_GROUP)
+
 // ————— Calculation ———————————————————————————————————————————————————————————
 
 //@function     Moving average of `source` over `length` bars, of type `maType`.
@@ -79,7 +91,11 @@ float ma4 = getMA(srcInput, len4Input, type4Input)
 // No `editable = false` here: that flag locks the Settings/Style tab, and the
 // show/hide checkboxes for each line live in that same tab. Colour and width are
 // still driven by the Inputs tab above; the Style tab simply duplicates them.
-plot(ma1, MA1_TITLE, color = color1Input, linewidth = widthInput)
-plot(ma2, MA2_TITLE, color = color2Input, linewidth = widthInput)
-plot(ma3, MA3_TITLE, color = color3Input, linewidth = widthInput)
-plot(ma4, MA4_TITLE, color = color4Input, linewidth = widthInput)
+ma1PlotID = plot(ma1, MA1_TITLE, color = color1Input, linewidth = widthInput)
+ma2PlotID = plot(ma2, MA2_TITLE, color = color2Input, linewidth = widthInput)
+ma3PlotID = plot(ma3, MA3_TITLE, color = color3Input, linewidth = widthInput)
+ma4PlotID = plot(ma4, MA4_TITLE, color = color4Input, linewidth = widthInput)
+
+// Pine has no `plot` type keyword, so the plot IDs above stay untyped.
+fill(ma1PlotID, ma3PlotID, fill13ColorInput, FILL_1_3_TITLE)
+fill(ma2PlotID, ma4PlotID, fill24ColorInput, FILL_2_4_TITLE)
