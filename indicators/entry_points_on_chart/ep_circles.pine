@@ -29,7 +29,7 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //          "_price_; __timestamp; _u/d_; _prifit_ (BE: when BE, dd: _max drawdown_);",
 //          
 //            var array<string> MA50_1D_ROWS = array.from(
-//              "88123; 1786665600000; u; 5x (BE: 3x, dd: $567);",
+//              "88123; 1786665600000; u; 5x (BE: 2x, dd: $500);",
 //              ""
 //          )
 //
@@ -400,7 +400,7 @@ if barstate.islast
             pickerValid := true
             generatorMessage := "Ready — copy the record from Pine Logs."
             if not generatedThisRun
-                string record = "\n 👉 " + f_priceText(pickedPrice) + "; " + str.tostring(pickedTime) + "; ___; ___;"
+                string record = "\n 👉 " + f_priceText(pickedPrice) + "; " + str.tostring(pickedTime) + "; u/d; _x (BE: _x, dd: $_);"
                 log.info(record)
                 generatedThisRun := true
 
