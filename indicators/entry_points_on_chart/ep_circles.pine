@@ -23,11 +23,17 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 // Direction places the label below (u) or above (d); the circle stays on the price.
 // Labels may be empty, but cannot contain semicolons or line breaks.
 //
-// EXAMPLE ONLY — add the quoted row to MA50_1D_ROWS below; do not duplicate the list:
-// var array<string> MA50_1D_ROWS = array.from(
-//     "88123; 1786665600000; u; 5R;",
-//     ""
-// )
+//
+//      EXAMPLE ONLY — add the quoted row to MA50_1D_ROWS below; do not duplicate the list:
+//      
+//          "_price_; __timestamp; _u/d_; _prifit_ (BE: when BE, dd: _max drawdown_);",
+//          
+//            var array<string> MA50_1D_ROWS = array.from(
+//              "88123; 1786665600000; u; 5x (BE: 3x, dd: $567);",
+//              ""
+//          )
+//
+//
 // Add each quoted row ABOVE the final empty string, followed by a comma.
 // Blank items are ignored. Edit a row to change an entry; delete it to remove one.
 // Save and update the script on the chart after editing. No examples are preloaded.
