@@ -17,9 +17,7 @@ TradingView indicators written in Pine Script.
 Follow the [Pine Script style guide](https://www.tradingview.com/pine-script-docs/writing/style-guide/):
 
 - Use `camelCase` for variables and functions, and `SNAKE_CASE` for constants.
-- End input variable names with `Input`: `maLengthInput`, `showAvgInput`.
 - Order each script: version annotation, declaration statement, imports, constants, inputs, functions, calculations, visuals, alerts.
-- Replace a literal used more than once with a constant.
 - Document each function's parameters and return value.
 
 ## Project structure

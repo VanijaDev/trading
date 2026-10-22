@@ -1,0 +1,481 @@
+//@version=6
+indicator("MA Entry Circles", overlay = true, format = format.price, precision = 0, max_labels_count = 500)
+
+// QUICK TUTORIAL: MA Entry Circles
+// The script draws a circle at each saved price and time, with an optional short label.
+// MA50 and MA200 are classification tags. The script doesn't draw moving averages.
+//
+// 1. Paste this file into a new TradingView Pine indicator, save it, and add it to the chart.
+//    Use a standard time-based chart of the market your entries belong to.
+// 2. Add entries to the eight lists below, one list per strategy and timeframe.
+//    In Settings > Draw entries, turn on the strategies and timeframes you want to see.
+//    These filters don't change the chart's timeframe.
+// 3. In Circle appearance, choose Circle size and the shared Border and fill color.
+//    Sizes grow from Tiny to Huge. They are display presets, not a radius in pixels.
+// 4. In Settings > Inputs > Tables, choose the table size and the background opacity.
+//
+// RECORD FORMAT: price; UNIX timestamp in milliseconds; u/d; short label;
+// The generator, tooltips, and table drop the fractional part of a price: 82655.585 shows as 82655.
+// Rows you type by hand can include decimals. Use a dot and no thousands separators.
+// A timestamp marks an absolute instant. The table and tooltips show dates in UTC.
+// Direction u puts the label below the circle, and d puts it above. The circle stays on the price.
+// A label can be empty, but it can't contain semicolons or line breaks.
+//
+// EXAMPLE: add the quoted row to MA50_1D_ROWS below. Don't duplicate the list.
+//
+//     "_price_; _timestamp_; u/d; _x (BE: _x, dd: $_);",
+//     Label fields: _profit_ (BE: when BE, dd: _max drawdown_)
+//
+//     var array<string> MA50_1D_ROWS = array.from(
+//         "88123; 1786665600000; u; 5x (BE: 2x, dd: $500);",
+//         ""
+//     )
+//
+// Add each quoted row above the final empty string, followed by a comma.
+// The script skips blank items. Edit a row to change an entry, or delete it to remove one.
+// Save and update the script on the chart after editing. The lists start empty.
+//
+// PICK A POINT TO GENERATE A RECORD:
+// 1. In Settings, turn on Generate an ep model.
+// 2. Use the indicator's More > Reset points and pick a price and time on the chart,
+//    or drag the existing point. Ordinary chart clicks don't create records.
+// 3. Open Pine Logs and copy the record after the leading newline, without the log
+//    timestamp prefix. The generator truncates the price instead of rounding it.
+// 4. Replace u/d with u or d. Fill in the label template, or delete it to leave the label empty.
+// 5. Wrap the record in quotes, add a comma, and paste it into the matching list
+//    as in the example. Save and update. Picking a point doesn't save an entry.
+// Reset points selects a new point. It doesn't delete saved entries.
+// Turn generation off when you finish. Deselect the indicator to hide its input handle.
+//
+// CHECK AND KEEP YOUR ENTRIES:
+// The bottom-right table shows saved, matching, drawn, invalid, and omitted counts.
+// An invalid row with a usable price and time draws a red circle labeled !!! ERROR !!!.
+// Hover over it to see the source item and the reason. Fix the row and update.
+// The script can't place a row with a bad price or time. Check the table's Diagnostics.
+// If a circle is missing, check the filters, the loaded chart history, and Diagnostics.
+// The lists have no symbol field. Keep a separate copy of the script for each market.
+// Keep the Pine source and a local backup. Settings doesn't store the entry lists.
+
+// MANUAL ENTRY LISTS: edit these eight lists to keep your entries.
+
+var array<string> MA50_1D_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA50_4H_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA50_1H_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA50_15M_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA200_1D_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA200_4H_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA200_1H_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+var array<string> MA200_15M_ROWS = array.from(
+// SL:
+// BE:
+    ""
+)
+
+// SETTINGS
+const string FILTERS = "Draw entries"
+const string STYLE = "Circle appearance"
+const string TABLES = "Tables"
+const string GENERATOR = "Generate an entry"
+const string DIRECTION_PLACEHOLDER = "u/d"
+const string LABEL_PLACEHOLDER = "_x (BE: _x, dd: $_)"
+const int MAX_LABELS = 500
+const int MAX_BARS = 100000
+const int MAX_ISSUES = 20
+
+bool showMa50 = input.bool(true, "MA50", inline = "strategy", group = FILTERS)
+bool showMa200 = input.bool(true, "MA200", inline = "strategy", group = FILTERS)
+bool showDay = input.bool(true, "1D", inline = "timeframe", group = FILTERS)
+bool show4h = input.bool(true, "4h", inline = "timeframe", group = FILTERS)
+bool show1h = input.bool(true, "1h", inline = "timeframe", group = FILTERS)
+bool show15m = input.bool(true, "15m", inline = "timeframe", group = FILTERS, tooltip = "Select stored entry categories. These checkboxes do not change the chart timeframe.")
+
+string circleSize = input.string("Normal", "Circle size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Sizes grow from Tiny to Huge. They are display presets, not radii in pixels or price units.")
+color circleColor = input.color(color.black, "Border and fill color", group = STYLE, tooltip = "One shared color for valid entries across both strategies and all timeframes. Invalid entries use opaque red.")
+
+string tableSize = input.string("Small", "Table size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = TABLES, tooltip = "Scales the statistics text and the table cells together. This control is in Inputs; the built-in Style > Tables checkbox controls visibility.")
+int tableOpacity = input.int(90, "Background opacity, %", minval = 0, maxval = 100, step = 5, group = TABLES, tooltip = "Opacity of the table background, which uses the chart background color. 100 is solid, 0 is clear.")
+
+bool generateEntry = input.bool(false, "Generate an ep model", group = GENERATOR, tooltip = "Enable, then use More > Reset points and pick a location, or drag the existing point. Copy the record from Pine Logs, fill in direction and label, and add it to a source list. Ordinary clicks do not generate records.")
+float pickedPrice = input.price(0.0, "Price", inline = "point", group = GENERATOR, confirm = true)
+int pickedTime = input.time(0, "Time", inline = "point", group = GENERATOR, confirm = true, tooltip = "One native time/price picker. TradingView may ask for a point when adding the indicator even if generation is off. Reset points selects a new point; it does not erase the source lists.")
+
+type EntryPoint
+    float price
+    int timestamp
+    string direction
+    string shortLabel
+    string problem = ""
+
+type EntryGroup
+    string strategy
+    string sourceTimeframe
+    array<EntryPoint> entries
+    array<EntryPoint> errors
+    int invalidCount
+
+type EntryDrawing
+    EntryPoint ep
+    EntryGroup group
+
+var array<EntryGroup> groups = array.new<EntryGroup>()
+var array<string> issues = array.new<string>()
+var array<int> barOpens = array.new<int>()
+var array<int> barCloses = array.new<int>()
+var array<label> circles = array.new<label>()
+var array<label> captions = array.new<label>()
+// Keep visuals on the price chart even if an existing instance occupies a pane.
+var table stats = table.new(position.bottom_right, 2, 10, border_width = 1, force_overlay = true)
+
+// @function Formats a price without its fractional part.
+// @param value Price to format.
+// @returns The price truncated toward zero, as a string.
+formatPrice(float value) =>
+    // Truncate instead of formatting, because formatting rounds the value.
+    str.tostring(int(value))
+
+// @function Splits off the first semicolon-delimited field. Without a semicolon,
+//           the field is the whole text, so an incomplete row keeps its usable
+//           price and time. The parser still reports the missing fields.
+// @param value Text to split.
+// @returns A tuple: the trimmed field, the text after the semicolon, and whether
+//          the text contains a semicolon.
+takeField(string value) =>
+    int separator = str.pos(value, ";")
+    bool found = not na(separator) and separator >= 0
+    string field = found ? str.trim(str.substring(value, 0, separator)) : str.trim(value)
+    string rest = found and separator + 1 < str.length(value) ? str.substring(value, separator + 1) : ""
+    [field, rest, found]
+
+// @function Parses one record: price; timestamp; u/d; label;
+// @param raw Record text from a source list.
+// @returns A tuple: the entry, or na when its price or time is unusable, and the
+//          problem text, empty for a valid record.
+parseRecord(string raw) =>
+    string row = str.trim(raw)
+    [priceText, afterPrice, hasPrice] = takeField(row)
+    [timeText, afterTime, hasTime] = takeField(afterPrice)
+    [directionText, afterDirection, hasDirection] = takeField(afterTime)
+    string labelText = str.trim(afterDirection)
+    if str.endswith(labelText, ";")
+        labelText := str.trim(str.substring(labelText, 0, str.length(labelText) - 1))
+    float priceNumber = str.tonumber(priceText)
+    float timeNumber = str.tonumber(timeText)
+    bool validPrice = not na(priceNumber) and not str.contains(priceText, ",") and not str.contains(priceText, "\n") and not str.contains(priceText, "\r")
+    bool validTime = not na(timeNumber) and not str.contains(timeText, "\n") and not str.contains(timeText, "\r") and timeNumber >= 0 and timeNumber <= 253402300799999 and timeNumber == math.floor(timeNumber)
+    string direction = str.lower(directionText)
+    direction := direction == "up" ? "u" : direction == "down" ? "d" : direction
+    string problem = ""
+    if not hasPrice or not hasTime or not hasDirection
+        problem := "Expected price; timestamp; u/d; label;"
+    else if str.contains(row, "\n") or str.contains(row, "\r")
+        problem := "Keep each record on one line."
+    else if not validPrice
+        problem := "Invalid price. Use a decimal point and no thousands separators."
+    else if not validTime
+        problem := "Timestamp must be whole UNIX milliseconds, years 1970 to 9999."
+    else if direction != "u" and direction != "d"
+        problem := "Direction must be u or d. Replace the " + DIRECTION_PLACEHOLDER + " placeholder."
+    else if str.contains(labelText, ";")
+        problem := "Too many fields: a label cannot contain a semicolon."
+    else if labelText == LABEL_PLACEHOLDER
+        problem := "Fill in the label placeholder, or leave the label empty."
+    EntryPoint ep = na
+    // A row with a bad direction or label keeps its chart location when both
+    // coordinates are usable. addGroup never adds it to the valid entry list.
+    if validPrice and validTime
+        ep := EntryPoint.new(priceNumber, int(timeNumber), direction, labelText, problem)
+    [ep, problem]
+
+// @function Parses one source list and adds it to `groups` as an entry group.
+//           Adds the first MAX_ISSUES problems to `issues`.
+// @param rows Source list of records.
+// @param strategy Strategy tag: MA50 or MA200.
+// @param sourceTimeframe Timeframe tag: 1D, 4h, 1h, or 15m.
+// @returns 0.
+addGroup(array<string> rows, string strategy, string sourceTimeframe) =>
+    array<EntryPoint> entries = array.new<EntryPoint>()
+    array<EntryPoint> errors = array.new<EntryPoint>()
+    int invalid = 0
+    for [rowIndex, raw] in rows
+        if str.length(str.trim(raw)) > 0
+            [ep, problem] = parseRecord(raw)
+            if problem == ""
+                array.push(entries, ep)
+            else
+                invalid += 1
+                string diagnostic = strategy + " / " + sourceTimeframe + " / item " + str.tostring(rowIndex + 1) + ": " + problem
+                if not na(ep)
+                    ep.problem := diagnostic
+                    array.push(errors, ep)
+                if array.size(issues) < MAX_ISSUES
+                    array.push(issues, diagnostic)
+    array.push(groups, EntryGroup.new(strategy, sourceTimeframe, entries, errors, invalid))
+    0
+
+// @function Checks a group against the strategy and timeframe filters.
+// @param group Entry group to check.
+// @returns true when the inputs show both the group's strategy and its timeframe.
+isAllowed(EntryGroup group) =>
+    bool strategyAllowed = group.strategy == "MA50" ? showMa50 : showMa200
+    bool timeframeAllowed = switch group.sourceTimeframe
+        "1D" => showDay
+        "4h" => show4h
+        "1h" => show1h
+        "15m" => show15m
+        => false
+    strategyAllowed and timeframeAllowed
+
+// @function Converts the Circle size input to a label size.
+// @returns Label size in typographic points. size.huge equals 24, so numeric
+//          sizes allow larger circles than the size.* constants.
+circleSizePoints() =>
+    switch circleSize
+        "Tiny" => 24
+        "Small" => 36
+        "Large" => 60
+        "X-Large" => 66
+        "Huge" => 72
+        => 48
+
+// @function Converts the Table size input to a text size.
+// @returns A size.* constant for the table text.
+tableTextSize() =>
+    switch tableSize
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Large" => size.large
+        "Huge" => size.huge
+        => size.normal
+
+// @function Finds the loaded candle that contains a timestamp. A timestamp in an
+//           overnight, weekend, or session gap matches no candle, so its circle
+//           can't land on a candle on the other side of the gap.
+// @param timestampValue UNIX time in milliseconds.
+// @returns Index into `barOpens` and `barCloses`, or -1 when no loaded candle
+//          contains the timestamp.
+barPositionAt(int timestampValue) =>
+    int lo = 0
+    int hi = array.size(barOpens) - 1
+    int found = -1
+    while lo <= hi
+        int middle = int(math.floor((lo + hi) / 2.0))
+        if array.get(barOpens, middle) <= timestampValue
+            found := middle
+            lo := middle + 1
+        else
+            hi := middle - 1
+    if found >= 0
+        int closing = array.get(barCloses, found)
+        if na(closing) or timestampValue >= closing
+            found := -1
+    found
+
+// @function Deletes all circle and caption labels the script drew.
+// @returns 0.
+clearDrawings() =>
+    while array.size(circles) > 0
+        label.delete(array.pop(circles))
+    while array.size(captions) > 0
+        label.delete(array.pop(captions))
+    0
+
+// @function Draws one entry: a circle at its price and time, plus a caption when
+//           the entry has text to show.
+// @param ep Entry to draw. A non-empty `problem` draws it as an error.
+// @param group Entry group that holds the entry. The tooltip shows its tags.
+// @returns 0.
+drawEntry(EntryPoint ep, EntryGroup group) =>
+    bool isError = ep.problem != ""
+    color markerColor = isError ? color.red : circleColor
+    string caption = isError ? "!!! ERROR !!!" : ep.shortLabel
+    string heading = isError ? ep.problem : group.strategy + " · " + group.sourceTimeframe + " · " + str.upper(ep.direction)
+    string details = heading + "\nPrice: " + formatPrice(ep.price) + "\n" + str.format_time(ep.timestamp, "yyyy-MM-dd HH:mm:ss", "UTC") + " UTC" + (isError or ep.shortLabel == "" ? "" : "\nLabel: " + ep.shortLabel)
+    // An empty circle label stays round, because no caption text stretches it.
+    // Its center sits on the recorded point, with no price or time offset.
+    array.push(circles, label.new(ep.timestamp, ep.price, "", xloc = xloc.bar_time, yloc = yloc.price, color = markerColor, style = label.style_circle, size = circleSizePoints(), tooltip = details, force_overlay = true))
+    if caption != ""
+        // A transparent caption background keeps the circle and the text independent.
+        // The padding uses text lines, so it doesn't move the circle's anchor.
+        // Tiny (24 points) gets 3 lines of padding, and larger circles get more.
+        int paddingLines = int(math.ceil(circleSizePoints() / 8.0))
+        string padding = str.repeat("\n", paddingLines)
+        // Errors put their warning above the circle instead of guessing a direction.
+        bool isUp = not isError and ep.direction == "u"
+        string captionText = isUp ? padding + caption : caption + padding
+        array.push(captions, label.new(ep.timestamp, ep.price, captionText, xloc = xloc.bar_time, yloc = yloc.price, color = color.new(markerColor, 100), style = isUp ? label.style_label_up : label.style_label_down, textcolor = isError ? color.red : chart.fg_color, size = size.small, tooltip = details, force_overlay = true))
+    0
+
+// @function Joins the valid entry counts of four consecutive groups.
+// @param start Index of the first group in `groups`: 0 for MA50, 4 for MA200.
+// @returns The 1D / 4h / 1h / 15m counts, separated by " / ".
+categoryCounts(int start) =>
+    string result = ""
+    for i = start to start + 3
+        EntryGroup group = array.get(groups, i)
+        result += (i == start ? "" : " / ") + str.tostring(array.size(group.entries))
+    result
+
+// @function Writes one row of the statistics table.
+// @param row Table row index.
+// @param title Text for the left cell.
+// @param value Text for the right cell.
+// @param ink Text color for the right cell.
+// @param tip Tooltip for the right cell.
+// @returns 0.
+setTableRow(int row, string title, string value, color ink, string tip = "") =>
+    color cellColor = color.new(chart.bg_color, 100 - tableOpacity)
+    string textSize = tableTextSize()
+    table.cell(stats, 0, row, title, text_color = chart.fg_color, bgcolor = cellColor, text_size = textSize, text_halign = text.align_left)
+    table.cell(stats, 1, row, value, text_color = ink, bgcolor = cellColor, text_size = textSize, text_halign = text.align_left, tooltip = tip)
+    0
+
+// Build all eight entry groups once, including hidden categories.
+if barstate.isfirst
+    addGroup(MA50_1D_ROWS, "MA50", "1D")
+    addGroup(MA50_4H_ROWS, "MA50", "4h")
+    addGroup(MA50_1H_ROWS, "MA50", "1h")
+    addGroup(MA50_15M_ROWS, "MA50", "15m")
+    addGroup(MA200_1D_ROWS, "MA200", "1D")
+    addGroup(MA200_4H_ROWS, "MA200", "4h")
+    addGroup(MA200_1H_ROWS, "MA200", "1h")
+    addGroup(MA200_15M_ROWS, "MA200", "15m")
+
+bool supportedChart = chart.is_standard and not timeframe.isticks and not na(time_close)
+if supportedChart
+    int lastIndex = array.size(barOpens) - 1
+    if lastIndex < 0 or array.get(barOpens, lastIndex) != time
+        if array.size(barOpens) >= MAX_BARS
+            array.shift(barOpens)
+            array.shift(barCloses)
+        array.push(barOpens, time)
+        array.push(barCloses, time_close)
+    else
+        array.set(barCloses, lastIndex, time_close)
+
+// varip keeps realtime ticks from repeating the log. Changing the picker or any
+// input reloads the script, which rebuilds the log history and resets this guard.
+varip bool generatedThisRun = false
+
+if barstate.islast
+    clearDrawings()
+    int saved = 0
+    int matching = 0
+    int invalid = 0
+    int drawn = 0
+    int errorsDrawn = 0
+    int historyOmissions = 0
+    int limitOmissions = 0
+    for group in groups
+        saved += array.size(group.entries)
+        invalid += group.invalidCount
+        if isAllowed(group)
+            matching += array.size(group.entries)
+
+    if supportedChart
+        // Reserve the shared label budget before drawing. Visible records go first,
+        // and errors go before valid entries within each visibility pass.
+        array<EntryDrawing> pending = array.new<EntryDrawing>()
+        int reservedLabels = 0
+        for pass = 0 to 1
+            for kind = 0 to 1
+                for group in groups
+                    if isAllowed(group)
+                        array<EntryPoint> candidates = kind == 0 ? group.errors : group.entries
+                        for ep in candidates
+                            int barPosition = barPositionAt(ep.timestamp)
+                            int candleTime = barPosition >= 0 ? array.get(barOpens, barPosition) : ep.timestamp
+                            bool inView = candleTime >= chart.left_visible_bar_time and candleTime <= chart.right_visible_bar_time
+                            if (pass == 0 and inView) or (pass == 1 and not inView)
+                                int labelCost = ep.problem != "" or ep.shortLabel != "" ? 2 : 1
+                                if barPosition < 0
+                                    historyOmissions += 1
+                                else if reservedLabels + labelCost > MAX_LABELS
+                                    limitOmissions += 1
+                                else
+                                    array.push(pending, EntryDrawing.new(ep, group))
+                                    reservedLabels += labelCost
+        // Draw errors last, so a valid circle at the same point can't cover them.
+        for layer = 0 to 1
+            for drawing in pending
+                bool isError = drawing.ep.problem != ""
+                if (layer == 0 and not isError) or (layer == 1 and isError)
+                    drawEntry(drawing.ep, drawing.group)
+                    if isError
+                        errorsDrawn += 1
+                    else
+                        drawn += 1
+
+    string generatorMessage = "Off"
+    bool pickerValid = false
+    if generateEntry
+        if not supportedChart
+            generatorMessage := "Use a standard time-based chart."
+        else if na(pickedPrice) or pickedTime < 0 or pickedTime > 253402300799999
+            generatorMessage := "Invalid picked price or timestamp."
+        else if barPositionAt(pickedTime) < 0
+            generatorMessage := "Use Reset points; select a loaded candle."
+        else
+            pickerValid := true
+            generatorMessage := "Ready. Copy the record from Pine Logs."
+            if not generatedThisRun
+                string record = "\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + LABEL_PLACEHOLDER + ";"
+                log.info(record)
+                generatedThisRun := true
+
+    string filterMessage = "Selected source categories"
+    if not supportedChart
+        filterMessage := "Use standard time-based candles."
+    else if not showMa50 and not showMa200
+        filterMessage := "Select MA50 and/or MA200."
+    else if not showDay and not show4h and not show1h and not show15m
+        filterMessage := "Select at least one timeframe."
+    else if saved == 0 and invalid == 0
+        filterMessage := "Add records to the eight source lists."
+    else if matching == 0
+        filterMessage := "No valid entries in the selected categories."
+
+    string diagnosticSummary = invalid > 0 ? array.get(issues, 0) : "None"
+    string diagnosticDetails = array.join(issues, "\n")
+    if invalid > MAX_ISSUES
+        diagnosticDetails += "\nShowing the first " + str.tostring(MAX_ISSUES) + " of " + str.tostring(invalid) + " errors."
+    if invalid > 1
+        diagnosticSummary += "\nHover here for more errors."
+    color normal = chart.fg_color
+    setTableRow(0, "MA Entry Circles", ticker.standard(syminfo.tickerid), normal, "Records belong to the market you collected them for. A record stores no symbol.")
+    setTableRow(1, "Saved / matching / drawn", str.tostring(saved) + " / " + str.tostring(matching) + " / " + str.tostring(drawn), normal, "Valid entries only. The Invalid / error circles row counts invalid records and their red circles.")
+    setTableRow(2, "MA50 · 1D / 4h / 1h / 15m", categoryCounts(0), normal)
+    setTableRow(3, "MA200 · 1D / 4h / 1h / 15m", categoryCounts(4), normal)
+    setTableRow(4, "Not drawn · history / limits", str.tostring(historyOmissions) + " / " + str.tostring(limitOmissions), historyOmissions + limitOmissions > 0 ? color.orange : normal, "Counts valid entries and placeable errors in the selected categories. History: no loaded candle contains the time, or the time falls in a session gap. Limits: " + str.tostring(MAX_LABELS) + " labels in total. Errors and labeled entries use two labels each, and unlabeled entries use one. Visible records get labels first, and errors get them before valid entries within each visibility pass.")
+    setTableRow(5, "Invalid / error circles", str.tostring(invalid) + " / " + str.tostring(errorsDrawn), invalid > 0 ? color.red : normal, "Invalid counts all malformed records. Error circles counts the red circles drawn for selected categories with usable coordinates and loaded history, within the label limit. A row with an unusable price or time gets no circle and appears in Diagnostics.")
+    setTableRow(6, "Filters / chart", filterMessage, supportedChart ? normal : color.orange)
+    setTableRow(7, "Generator", generatorMessage, generateEntry and not pickerValid ? color.orange : normal)
+    setTableRow(8, "Picked price / time (UTC)", pickerValid ? formatPrice(pickedPrice) + " · " + str.format_time(pickedTime, "yyyy-MM-dd HH:mm:ss", "UTC") : "None", normal)
+    setTableRow(9, "Diagnostics", diagnosticSummary, invalid > 0 ? color.orange : normal, diagnosticDetails)
