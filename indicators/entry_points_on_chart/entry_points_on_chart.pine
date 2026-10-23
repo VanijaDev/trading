@@ -25,8 +25,13 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 // EXAMPLE: add the quoted row inside the MA50_1D_ROWS list below. Don't declare the list again.
 //
 //     "_price_; _timestamp_; u/d; 💲_x\nBE: _x, Buffer: $_ / $_;",
-//     Fields: price; timestamp; direction; 💲reward in x BE: x at the break-even move,
-//     Buffer: SL buffer from this signal's recent bottom or high / max drawdown;
+//     Fields:
+//       - price
+//       - timestamp
+//       - direction - up / down
+//       - maximum reward reached in "x" before hitting SL or BE
+//       - BE: "x" at the break-even move
+//       - Buffer: SL buffer from this signal's recent bottom or high / max drawdown
 //
 //     var array<string> MA50_1D_ROWS = array.from(
 //         "94781; 1740960000000; d; 💲3x\nBE: 2x, Buffer: $500 / $350;",
