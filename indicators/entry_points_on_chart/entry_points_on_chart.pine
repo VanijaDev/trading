@@ -472,7 +472,7 @@ if barstate.islast
                 string slBufferText = str.trim(slBuffer) == "" ? "_" : str.trim(slBuffer)
                 string labelTemplate = LABEL_HEAD + slBufferText + LABEL_TAIL
                 // Log \n as typed text, so the copied record pastes into a list on one line.
-                string record = "\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + ";"
+                string record = "\n👇\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + ";"
                 log.info(record)
                 generatedThisRun := true
 
