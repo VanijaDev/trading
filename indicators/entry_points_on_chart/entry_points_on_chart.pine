@@ -38,10 +38,10 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 // Save and update the script on the chart after editing. The lists start empty.
 //
 // PICK A POINT TO GENERATE A RECORD:
-// 1. In Settings, turn on Generate a record. Enter the SL buffer, or leave it empty to keep _.
+// 1. In Settings, turn on Generate a record. Enter BE and the SL buffer, or leave them empty to keep _.
 // 2. Use the indicator's More > Reset points and pick a price and time on the chart,
 //    or drag the existing point. Chart clicks don't create records.
-// 3. Open Pine Logs and copy the record line below the log timestamp.
+// 3. Open Pine Logs and copy the record line below 👇.
 // 4. Replace u/d with u or d. Fill in the label template, or delete it to leave the label empty.
 // 5. Wrap the record in quotes, add a comma, and paste it into the matching list
 //    as in the example. Save and update. Picking a point doesn't save an entry.
@@ -106,9 +106,11 @@ const string STYLE = "Circle appearance"
 const string TABLES = "Tables"
 const string GENERATOR = "Record generator"
 const string DIRECTION_PLACEHOLDER = "u/d"
-// The label template splits around the SL buffer, which comes from Settings. A label
-// that starts with LABEL_HEAD and ends with LABEL_TAIL is an unfilled template.
-const string LABEL_HEAD = "💲_x\nBE: _x, Buffer: $"
+// The generator fills BE and the SL buffer from Settings. A label that starts with
+// LABEL_HEAD and ends with LABEL_TAIL keeps the reward and max drawdown placeholders,
+// so the parser treats it as an unfilled template.
+const string LABEL_HEAD = "💲_x\nBE: "
+const string LABEL_MIDDLE = "x, Buffer: $"
 const string LABEL_TAIL = " / $_"
 const int MAX_LABELS = 500
 const int MAX_BARS = 100000
@@ -133,6 +135,7 @@ bool generateEntry = input.bool(false, "Generate a record", group = GENERATOR, t
 float pickedPrice = input.price(0.0, "Price", inline = "point", group = GENERATOR, confirm = true)
 int pickedTime = input.time(0, "Time", inline = "point", group = GENERATOR, confirm = true, tooltip = "Price and Time share one picker. TradingView may ask for a point when you add the indicator, with generation on or off. Reset points picks a new point and keeps your lists.")
 string slBuffer = input.string("", "SL buffer, $", group = GENERATOR, tooltip = "SL buffer from this signal's recent bottom or high, without the $ sign. The generator writes it into the label. Leave it empty to write _.")
+string beLevel = input.string("", "BE, x", group = GENERATOR, tooltip = "Profit in x when you moved the SL to break-even, without the x. The generator writes it into the label. Leave it empty to write _.")
 
 type EntryPoint
     float price
@@ -161,6 +164,13 @@ var array<label> captions = array.new<label>()
 // force_overlay keeps the table and labels on the price chart when an older instance
 // of the script runs in its own pane.
 var table stats = table.new(position.bottom_right, 2, 10, border_width = 1, force_overlay = true)
+
+// @function Prepares a Settings value for the label template.
+// @param value Text from a Settings input.
+// @returns The trimmed value, or _ when it's empty.
+valueOrPlaceholder(string value) =>
+    string trimmed = str.trim(value)
+    trimmed == "" ? "_" : trimmed
 
 // @function Formats a price without its fractional part.
 // @param value Price to format.
@@ -469,8 +479,7 @@ if barstate.islast
             pickerValid := true
             generatorMessage := "Ready. Copy the record from Pine Logs."
             if not generatedThisRun
-                string slBufferText = str.trim(slBuffer) == "" ? "_" : str.trim(slBuffer)
-                string labelTemplate = LABEL_HEAD + slBufferText + LABEL_TAIL
+                string labelTemplate = LABEL_HEAD + valueOrPlaceholder(beLevel) + LABEL_MIDDLE + valueOrPlaceholder(slBuffer) + LABEL_TAIL
                 // Log \n as typed text, so the copied record pastes into a list on one line.
                 string record = "\n👇\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + ";"
                 log.info(record)
