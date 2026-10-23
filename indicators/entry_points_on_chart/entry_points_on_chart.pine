@@ -118,8 +118,8 @@ bool show4h = input.bool(true, "4h", inline = "timeframe", group = FILTERS)
 bool show1h = input.bool(true, "1h", inline = "timeframe", group = FILTERS)
 bool show15m = input.bool(true, "15m", inline = "timeframe", group = FILTERS, tooltip = "Choose which saved categories to draw. The chart timeframe stays the same.")
 
-string circleSize = input.string("Normal", "Circle size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Display presets, from Tiny to Huge.")
-string labelSize = input.string("Small", "Label size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Text size of each circle's label, from Tiny to Huge.")
+string circleSize = input.string("Small", "Circle size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Display presets, from Tiny to Huge.")
+string labelSize = input.string("Normal", "Label size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Text size of each circle's label, from Tiny to Huge.")
 // Default: black at 25% opacity (transparency 75).
 color circleColor = input.color(color.new(color.black, 75), "Border and fill color", group = STYLE, tooltip = "One color for all valid entries in both strategies and all timeframes. Invalid entries are red.")
 
