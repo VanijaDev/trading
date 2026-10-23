@@ -120,7 +120,8 @@ bool show15m = input.bool(true, "15m", inline = "timeframe", group = FILTERS, to
 
 string circleSize = input.string("Normal", "Circle size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Display presets, from Tiny to Huge.")
 string labelSize = input.string("Small", "Label size", options = ["Tiny", "Small", "Normal", "Large", "X-Large", "Huge"], group = STYLE, tooltip = "Text size of each circle's label, from Tiny to Huge.")
-color circleColor = input.color(color.black, "Border and fill color", group = STYLE, tooltip = "One color for all valid entries in both strategies and all timeframes. Invalid entries are red.")
+// Default: black at 25% opacity (transparency 75).
+color circleColor = input.color(color.new(color.black, 75), "Border and fill color", group = STYLE, tooltip = "One color for all valid entries in both strategies and all timeframes. Invalid entries are red.")
 
 string tableSize = input.string("Small", "Table size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = TABLES, tooltip = "Sets the text and cell size of the statistics table. To hide the table, use the Style > Tables checkbox.")
 int tableOpacity = input.int(90, "Background opacity, %", minval = 0, maxval = 100, step = 5, group = TABLES, tooltip = "The table background uses the chart background color. 100 is solid, 0 is clear.")
