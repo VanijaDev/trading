@@ -1,5 +1,5 @@
 //@version=6
-indicator("MA Entry Circles", overlay = true, format = format.price, precision = 0, max_labels_count = 500)
+indicator("MA Entry Circles", overlay = true, format = format.price, precision = 0, max_labels_count = 500, max_lines_count = 500)
 
 // HOW TO USE: MA Entry Circles
 // The script draws a circle at each saved price and time, with an optional short label.
@@ -12,6 +12,7 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //    These filters don't change the chart's timeframe.
 // 3. In Circle appearance, choose Circle size, Label size, and the shared Border and fill color.
 //    Sizes are display presets, from Tiny to Huge.
+//    In Price line, choose the line color, width, and candles on each side of the circle.
 // 4. In Settings > Inputs > Tables, choose the table size and the background opacity.
 //
 // RECORD FORMAT: price; UNIX timestamp in milliseconds; u/d; short label;
@@ -24,14 +25,16 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //
 // EXAMPLE: add the quoted row inside the MA50_1D_ROWS list below. Don't declare the list again.
 //
-//     "_price_; _timestamp_; u/d; 💲_x\nBE: _x, Buffer: $_ / $_;",
+//     "_price_; _timestamp_; u/d; 💲_x\nBE: _x, Buffer: $_ / $_ / $0;",
 //     Fields:
 //       - price
 //       - timestamp
 //       - direction - up / down
 //       - maximum reward reached in "x" before hitting SL or BE
 //       - BE: "x" at the break-even move
-//       - Buffer: SL buffer from this signal's recent bottom or high / max drawdown
+//       - Buffer: SL buffer from this signal's recent bottom or high / max drawdown / line price
+//     A line price above 0 draws a horizontal line at that price. The chart label hides
+//     the line price and stays clear of the circle and the line. 0 means no line.
 //
 //     var array<string> MA50_1D_ROWS = array.from(
 //         "94781; 1740960000000; d; 💲3x\nBE: 2x, Buffer: $500 / $350;",
@@ -110,13 +113,16 @@ const string FILTERS = "Draw entries"
 const string STYLE = "Circle appearance"
 const string TABLES = "Tables"
 const string GENERATOR = "Record generator"
+const string LINES = "Price line"
 const string DIRECTION_PLACEHOLDER = "u/d"
-// The generator fills BE and the SL buffer from Settings. A label that starts with
-// LABEL_HEAD and ends with LABEL_TAIL keeps the reward and max drawdown placeholders,
-// so the parser treats it as an unfilled template.
+// The generator fills BE and the SL buffer from Settings. A label that, without its
+// line price, starts with LABEL_HEAD and ends with LABEL_TAIL keeps the reward and
+// max drawdown placeholders, so the parser treats it as an unfilled template.
 const string LABEL_HEAD = "💲_x\nBE: "
 const string LABEL_MIDDLE = "x, Buffer: $"
 const string LABEL_TAIL = " / $_"
+// The generator writes 0 for the line price: no line until you enter one.
+const string LABEL_LINE = " / $0"
 const int MAX_LABELS = 500
 const int MAX_BARS = 100000
 const int MAX_ISSUES = 20
@@ -142,12 +148,17 @@ int pickedTime = input.time(0, "Time", inline = "point", group = GENERATOR, conf
 string slBuffer = input.string("", "SL buffer, $", group = GENERATOR, tooltip = "SL buffer from this signal's recent bottom or high, without the $ sign. The generator writes it into the label. Leave it empty to write _.")
 string beLevel = input.string("", "BE, x", group = GENERATOR, tooltip = "Profit in x when you moved the SL to break-even, without the x. The generator writes it into the label. Leave it empty to write _.")
 
+color lineColor = input.color(color.red, "Line color", group = LINES)
+int lineWidth = input.int(3, "Line width", minval = 1, group = LINES, tooltip = "In pixels.")
+int lineCandles = input.int(5, "Candles each side", minval = 1, group = LINES, tooltip = "The line runs from this many candles left of the circle's candle to this many right of it.")
+
 type EntryPoint
     float price
     int timestamp
     string direction
     string shortLabel
     string problem = ""
+    float linePrice = 0.0
 
 type EntryGroup
     string strategy
@@ -159,6 +170,7 @@ type EntryGroup
 type EntryDrawing
     EntryPoint ep
     EntryGroup group
+    int barPosition
 
 var array<EntryGroup> groups = array.new<EntryGroup>()
 var array<string> issues = array.new<string>()
@@ -166,8 +178,9 @@ var array<int> barOpens = array.new<int>()
 var array<int> barCloses = array.new<int>()
 var array<label> circles = array.new<label>()
 var array<label> captions = array.new<label>()
-// force_overlay keeps the table and labels on the price chart when an older instance
-// of the script runs in its own pane.
+var array<line> priceLines = array.new<line>()
+// force_overlay keeps the table, labels, and lines on the price chart when an older
+// instance of the script runs in its own pane.
 var table stats = table.new(position.bottom_right, 2, 10, border_width = 1, force_overlay = true)
 
 // @function Prepares a Settings value for the label template.
@@ -197,6 +210,26 @@ takeField(string value) =>
     string rest = found and separator + 1 < str.length(value) ? str.substring(value, separator + 1) : ""
     [field, rest, found]
 
+// @function Splits the line price off a label: the third value after "Buffer:".
+// @param labelText Label text from a record.
+// @returns A tuple: the label without the line price, and the line price. The price
+//          is 0 when the label has no third value or the value is _ or empty, and
+//          na when the value isn't a number.
+splitLinePrice(string labelText) =>
+    string key = "Buffer:"
+    string shown = labelText
+    float linePrice = 0.0
+    int keyPos = str.pos(labelText, key)
+    if not na(keyPos) and keyPos >= 0
+        int valuesStart = keyPos + str.length(key)
+        string valuesText = valuesStart < str.length(labelText) ? str.substring(labelText, valuesStart) : ""
+        array<string> values = str.split(valuesText, "/")
+        if array.size(values) >= 3
+            shown := str.trim(str.substring(labelText, 0, valuesStart) + array.get(values, 0) + "/" + array.get(values, 1))
+            string priceText = str.trim(str.replace_all(array.get(values, 2), "$", ""))
+            linePrice := priceText == "" or priceText == "_" ? 0.0 : str.tonumber(priceText)
+    [shown, linePrice]
+
 // @function Parses one record: price; timestamp; u/d; label;
 // @param raw Record text from a source list.
 // @returns A tuple: the entry, or na when its price or time is unusable, and the
@@ -209,6 +242,7 @@ parseRecord(string raw) =>
     string labelText = str.trim(afterDirection)
     if str.endswith(labelText, ";")
         labelText := str.trim(str.substring(labelText, 0, str.length(labelText) - 1))
+    [shownLabel, linePrice] = splitLinePrice(labelText)
     float priceNumber = str.tonumber(priceText)
     float timeNumber = str.tonumber(timeText)
     bool validPrice = not na(priceNumber) and not str.contains(priceText, ",") and not str.contains(priceText, "\n") and not str.contains(priceText, "\r")
@@ -228,13 +262,15 @@ parseRecord(string raw) =>
         problem := "Set the direction to u or d. Replace the " + DIRECTION_PLACEHOLDER + " placeholder."
     else if str.contains(labelText, ";")
         problem := "Too many fields. Remove the semicolon from the label."
-    else if str.startswith(labelText, LABEL_HEAD) and str.endswith(labelText, LABEL_TAIL)
+    else if na(linePrice)
+        problem := "Invalid line price. Use a number, or 0 for no line."
+    else if str.startswith(shownLabel, LABEL_HEAD) and str.endswith(shownLabel, LABEL_TAIL)
         problem := "Fill in the label placeholder, or leave the label empty."
     EntryPoint ep = na
     // A row with a bad direction or label keeps its chart location when its price
     // and time are usable. addGroup() puts it in the error list.
     if validPrice and validTime
-        ep := EntryPoint.new(priceNumber, int(timeNumber), direction, labelText, problem)
+        ep := EntryPoint.new(priceNumber, int(timeNumber), direction, shownLabel, problem, nz(linePrice))
     [ep, problem]
 
 // @function Parses one source list and adds it to `groups` as an entry group.
@@ -334,21 +370,24 @@ barPositionAt(int timestampValue) =>
             found := -1
     found
 
-// @function Deletes all circle and caption labels the script drew.
+// @function Deletes all circles, captions, and price lines the script drew.
 // @returns 0.
 clearDrawings() =>
     while array.size(circles) > 0
         label.delete(array.pop(circles))
     while array.size(captions) > 0
         label.delete(array.pop(captions))
+    while array.size(priceLines) > 0
+        line.delete(array.pop(priceLines))
     0
 
 // @function Draws one entry: a circle at its price and time, plus a caption when
 //           the entry has text to show.
 // @param ep Entry to draw. The function draws an entry with a non-empty `problem` as an error.
 // @param group Entry group that holds the entry. The tooltip shows its tags.
+// @param barPosition Index of the entry's candle in `barOpens`.
 // @returns 0.
-drawEntry(EntryPoint ep, EntryGroup group) =>
+drawEntry(EntryPoint ep, EntryGroup group, int barPosition) =>
     bool isError = ep.problem != ""
     color markerColor = isError ? color.red : circleColor
     string caption = isError ? "!!! ERROR !!!" : ep.shortLabel
@@ -357,7 +396,18 @@ drawEntry(EntryPoint ep, EntryGroup group) =>
     // The circle label has no text, so it stays round. Its center sits on the
     // recorded price and time, with no offset.
     array.push(circles, label.new(ep.timestamp, ep.price, "", xloc = xloc.bar_time, yloc = yloc.price, color = markerColor, style = label.style_circle, size = circleSizePoints(), tooltip = details, force_overlay = true))
+    bool hasLine = not isError and ep.linePrice > 0
+    if hasLine
+        // The line stops at the first or last loaded candle.
+        int leftTime = array.get(barOpens, math.max(barPosition - lineCandles, 0))
+        int rightTime = array.get(barOpens, math.min(barPosition + lineCandles, array.size(barOpens) - 1))
+        array.push(priceLines, line.new(leftTime, ep.linePrice, rightTime, ep.linePrice, xloc = xloc.bar_time, color = lineColor, width = lineWidth, force_overlay = true))
     if caption != ""
+        // Errors show their warning above the circle, because their direction may be invalid.
+        bool isUp = not isError and ep.direction == "u"
+        // A line past the entry on the caption's side (below it for u, above it for d)
+        // becomes the caption's anchor, so the caption clears both the circle and the line.
+        bool atLine = hasLine and (isUp ? ep.linePrice < ep.price : ep.linePrice > ep.price)
         // The caption sits in its own label with a transparent background, so its
         // text can't stretch or cover the circle. Blank text lines pad the caption
         // away from the circle without moving the anchor. Larger text makes taller
@@ -365,10 +415,8 @@ drawEntry(EntryPoint ep, EntryGroup group) =>
         // a Tiny circle (24) gets 3 lines of padding, and larger circles get more.
         int paddingLines = int(math.ceil(circleSizePoints() * 10 / (8.0 * labelTextSize())))
         string padding = str.repeat("\n", paddingLines)
-        // Errors show their warning above the circle, because their direction may be invalid.
-        bool isUp = not isError and ep.direction == "u"
         string captionText = isUp ? padding + caption : caption + padding
-        array.push(captions, label.new(ep.timestamp, ep.price, captionText, xloc = xloc.bar_time, yloc = yloc.price, color = color.new(markerColor, 100), style = isUp ? label.style_label_up : label.style_label_down, textcolor = isError ? color.red : chart.fg_color, size = labelTextSize(), tooltip = details, force_overlay = true))
+        array.push(captions, label.new(ep.timestamp, atLine ? ep.linePrice : ep.price, captionText, xloc = xloc.bar_time, yloc = yloc.price, color = color.new(markerColor, 100), style = isUp ? label.style_label_up : label.style_label_down, textcolor = isError ? color.red : chart.fg_color, size = labelTextSize(), tooltip = details, force_overlay = true))
     0
 
 // @function Joins the valid entry counts of four consecutive groups.
@@ -458,14 +506,14 @@ if barstate.islast
                                 else if reservedLabels + labelCost > MAX_LABELS
                                     limitOmissions += 1
                                 else
-                                    array.push(pending, EntryDrawing.new(ep, group))
+                                    array.push(pending, EntryDrawing.new(ep, group, barPosition))
                                     reservedLabels += labelCost
         // Draw errors last, so a valid circle at the same point can't cover them.
         for layer = 0 to 1
             for drawing in pending
                 bool isError = drawing.ep.problem != ""
                 if (layer == 0 and not isError) or (layer == 1 and isError)
-                    drawEntry(drawing.ep, drawing.group)
+                    drawEntry(drawing.ep, drawing.group, drawing.barPosition)
                     if isError
                         errorsDrawn += 1
                     else
@@ -484,7 +532,7 @@ if barstate.islast
             pickerValid := true
             generatorMessage := "Ready. Copy the record from Pine Logs."
             if not generatedThisRun
-                string labelTemplate = LABEL_HEAD + valueOrPlaceholder(beLevel) + LABEL_MIDDLE + valueOrPlaceholder(slBuffer) + LABEL_TAIL
+                string labelTemplate = LABEL_HEAD + valueOrPlaceholder(beLevel) + LABEL_MIDDLE + valueOrPlaceholder(slBuffer) + LABEL_TAIL + LABEL_LINE
                 // Log \n as typed text, so the copied record pastes into a list on one line.
                 string record = "\n👇\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + ";"
                 log.info(record)
