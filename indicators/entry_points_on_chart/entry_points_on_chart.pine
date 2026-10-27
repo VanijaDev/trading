@@ -33,8 +33,8 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //       - maximum reward reached in "x" before hitting SL or BE
 //       - BE: "x" at the break-even move
 //       - Buffer: SL buffer from this signal's recent bottom or high / max buffer drawdown (buffer only) / SL line price
-//     A line price above 0 draws a horizontal line at that price. The chart label hides
-//     the line price and stays clear of the circle and the line. 0 means no line.
+//     An SL line price above 0 draws a horizontal line at that price. The chart label hides
+//     the SL line price and stays clear of the circle and the line. 0 means no line.
 //
 //     var array<string> MA50_1D_ROWS = array.from(
 //         "94781; 1740960000000; d; 💲3x\nBE: 2x, Buffer: $500 / $350;",
