@@ -389,7 +389,7 @@ clearDrawings() =>
 // @returns 0.
 drawEntry(EntryPoint ep, EntryGroup group, int barPosition) =>
     bool isError = ep.problem != ""
-    color markerColor = isError ? color.red : circleColor
+    color markerColor = isError ? color.new(color.red, 50) : circleColor
     string caption = isError ? "!!! ERROR !!!" : ep.shortLabel
     string heading = isError ? ep.problem : group.strategy + " · " + group.sourceTimeframe + " · " + str.upper(ep.direction)
     string details = heading + "\nPrice: " + formatPrice(ep.price) + "\n" + str.format_time(ep.timestamp, "yyyy-MM-dd HH:mm:ss", "UTC") + " UTC" + (isError or ep.shortLabel == "" ? "" : "\nLabel: " + ep.shortLabel)
