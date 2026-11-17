@@ -15,17 +15,18 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //    In Price line, choose the line color, width, and candles on each side of the circle.
 // 4. In Settings > Inputs > Tables, choose the table size and the background opacity.
 //
-// RECORD FORMAT: price; UNIX timestamp in milliseconds; u/d; short label;
+// RECORD FORMAT: price; UNIX timestamp in milliseconds; u/d; short label; reason;
 // The generator, tooltips, and table drop the fractional part of a price: 82655.585 shows as 82655.
 // Rows you type by hand can include decimals. Use a dot and no thousands separators.
 // A timestamp is an exact moment, independent of the chart's time zone.
 // The table and tooltips show it in UTC.
 // Direction u puts the label below the circle, and d puts it above. The circle stays on the price.
-// A label can be empty, but it can't contain semicolons. Write a line break as \n.
+// The label can be empty. The reason is optional and starts on a new line under the label.
+// Neither can contain semicolons. Write a line break as \n.
 //
 // EXAMPLE: add the quoted row inside the MA50_1D_ROWS list below. Don't declare the list again.
 //
-//     "_price_; _timestamp_; u/d; 💲_x\nBE: _x, Buffer: $_ / $_ / $0;",
+//     "_price_; _timestamp_; u/d; 💲_x\nBE: _x, Buffer: $_ / $_ / $0; Reason: ;",
 //     Fields:
 //       - price
 //       - timestamp
@@ -33,11 +34,12 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //       - maximum reward reached in "x" before hitting SL or BE
 //       - BE: "x" at the break-even move
 //       - Buffer: SL buffer from this signal's recent bottom or high / max buffer drawdown (buffer only) / SL line price
+//       - Reason: the chart shows the text after "Reason:" on a new line under the label. Leave it empty to hide it.
 //     An SL line price above 0 draws a horizontal line at that price. The chart label hides
 //     the SL line price and stays clear of the circle and the line. 0 means no line.
 //
 //     var array<string> MA50_1D_ROWS = array.from(
-//         "94781; 1740960000000; d; 💲3x\nBE: 2x, Buffer: $500 / $350;",
+//         "94781; 1740960000000; d; 💲3x\nBE: 2x, Buffer: $500 / $350; Reason: ;",
 //         ""
 //     )
 //
@@ -51,6 +53,7 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 //    or drag the existing point. Chart clicks don't create records.
 // 3. Open Pine Logs and copy the record line below 👇.
 // 4. Replace u/d with u or d. Fill in the label template, or delete it to leave the label empty.
+//    Type the reason after Reason:, or leave it empty to hide it.
 // 5. Wrap the record in quotes, add a comma, and paste it into the matching list
 //    as in the example. Save and update. Picking a point doesn't save an entry.
 // Reset points selects a new point. It doesn't delete saved entries.
@@ -59,7 +62,7 @@ indicator("MA Entry Circles", overlay = true, format = format.price, precision =
 // CHECK AND KEEP YOUR ENTRIES:
 // The bottom-right table shows saved, matching, drawn, invalid, and omitted counts.
 // For an invalid row with a usable price and time, the script draws a red circle labeled !!! ERROR !!!.
-// Hover over it to see the source item and the reason. Fix the row and update.
+// Hover over it to see the source item and the error. Fix the row and update.
 // The script can't place a row with a bad price or time. Check the table's Diagnostics.
 // If a circle is missing, check the filters, the loaded chart history, and Diagnostics.
 // The lists have no symbol field. Keep a separate copy of the script for each market.
@@ -123,6 +126,9 @@ const string LABEL_MIDDLE = "x, Buffer: $"
 const string LABEL_TAIL = " / $_"
 // The generator writes 0 for the line price: no line until you enter one.
 const string LABEL_LINE = " / $0"
+// The generator writes REASON_PREFIX, and you type the reason after it. The chart
+// hides the prefix, so an unfilled one shows nothing.
+const string REASON_PREFIX = "Reason:"
 const int MAX_LABELS = 500
 const int MAX_BARS = 100000
 const int MAX_ISSUES = 20
@@ -142,7 +148,7 @@ color circleColor = input.color(color.new(color.black, 75), "Border and fill col
 string tableSize = input.string("Small", "Table size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = TABLES, tooltip = "Sets the text and cell size of the statistics table. To hide the table, use the Style > Tables checkbox.")
 int tableOpacity = input.int(90, "Background opacity, %", minval = 0, maxval = 100, step = 5, group = TABLES, tooltip = "The table background uses the chart background color. 100 is solid, 0 is clear.")
 
-bool generateEntry = input.bool(false, "Generate a record", group = GENERATOR, tooltip = "Turn on, then pick a point with More > Reset points or drag the existing point. Copy the record from Pine Logs, fill in the direction and label, and add it to a list. Chart clicks don't create records.")
+bool generateEntry = input.bool(false, "Generate a record", group = GENERATOR, tooltip = "Turn on, then pick a point with More > Reset points or drag the existing point. Copy the record from Pine Logs, fill in the direction, label, and reason, and add it to a list. Chart clicks don't create records.")
 float pickedPrice = input.price(0.0, "Price", inline = "point", group = GENERATOR, confirm = true)
 int pickedTime = input.time(0, "Time", inline = "point", group = GENERATOR, confirm = true, tooltip = "Price and Time share one picker. TradingView may ask for a point when you add the indicator, with generation on or off. Reset points picks a new point and keeps your lists.")
 string slBuffer = input.string("", "SL buffer, $", group = GENERATOR, tooltip = "SL buffer from this signal's recent bottom or high, without the $ sign. The generator writes it into the label. Leave it empty to write _.")
@@ -159,6 +165,7 @@ type EntryPoint
     string shortLabel
     string problem = ""
     float linePrice = 0.0
+    string reason = ""
 
 type EntryGroup
     string strategy
@@ -230,7 +237,7 @@ splitLinePrice(string labelText) =>
             linePrice := priceText == "" or priceText == "_" ? 0.0 : str.tonumber(priceText)
     [shown, linePrice]
 
-// @function Parses one record: price; timestamp; u/d; label;
+// @function Parses one record: price; timestamp; u/d; label; reason; The reason is optional.
 // @param raw Record text from a source list.
 // @returns A tuple: the entry, or na when its price or time is unusable, and the
 //          problem text, empty for a valid record.
@@ -239,9 +246,15 @@ parseRecord(string raw) =>
     [priceText, afterPrice, hasPrice] = takeField(row)
     [timeText, afterTime, hasTime] = takeField(afterPrice)
     [directionText, afterDirection, hasDirection] = takeField(afterTime)
-    string labelText = str.trim(afterDirection)
-    if str.endswith(labelText, ";")
-        labelText := str.trim(str.substring(labelText, 0, str.length(labelText) - 1))
+    [labelText, afterLabel, hasLabel] = takeField(afterDirection)
+    // The reason follows the label's semicolon. A semicolon after the reason is optional.
+    string reasonText = hasLabel ? str.trim(afterLabel) : ""
+    if str.endswith(reasonText, ";")
+        reasonText := str.trim(str.substring(reasonText, 0, str.length(reasonText) - 1))
+    // The chart shows the reason without the generator's Reason: prefix.
+    if str.startswith(reasonText, REASON_PREFIX)
+        int prefixEnd = str.length(REASON_PREFIX)
+        reasonText := prefixEnd < str.length(reasonText) ? str.trim(str.substring(reasonText, prefixEnd)) : ""
     [shownLabel, linePrice] = splitLinePrice(labelText)
     float priceNumber = str.tonumber(priceText)
     float timeNumber = str.tonumber(timeText)
@@ -253,15 +266,15 @@ parseRecord(string raw) =>
     if not hasPrice or not hasTime or not hasDirection
         problem := "Use the format: price; timestamp; u/d; label;"
     else if str.contains(priceText + timeText + directionText, "\n")
-        problem := "Only the label can contain line breaks."
+        problem := "Only the label and the reason can contain line breaks."
     else if not validPrice
         problem := "Invalid price. Use a decimal point and no thousands separators."
     else if not validTime
         problem := "Use a whole UNIX timestamp in milliseconds, years 1970 to 9999."
     else if direction != "u" and direction != "d"
         problem := "Set the direction to u or d. Replace the " + DIRECTION_PLACEHOLDER + " placeholder."
-    else if str.contains(labelText, ";")
-        problem := "Too many fields. Remove the semicolon from the label."
+    else if str.contains(reasonText, ";")
+        problem := "Too many fields. The label and the reason can't contain semicolons."
     else if na(linePrice)
         problem := "Invalid line price. Use a number, or 0 for no line."
     else if str.startswith(shownLabel, LABEL_HEAD) and str.endswith(shownLabel, LABEL_TAIL)
@@ -270,7 +283,7 @@ parseRecord(string raw) =>
     // A row with a bad direction or label keeps its chart location when its price
     // and time are usable. addGroup() puts it in the error list.
     if validPrice and validTime
-        ep := EntryPoint.new(priceNumber, int(timeNumber), direction, shownLabel, problem, nz(linePrice))
+        ep := EntryPoint.new(priceNumber, int(timeNumber), direction, shownLabel, problem, nz(linePrice), reasonText)
     [ep, problem]
 
 // @function Parses one source list and adds it to `groups` as an entry group.
@@ -390,9 +403,12 @@ clearDrawings() =>
 drawEntry(EntryPoint ep, EntryGroup group, int barPosition) =>
     bool isError = ep.problem != ""
     color markerColor = isError ? color.new(color.red, 50) : circleColor
-    string caption = isError ? "!!! ERROR !!!" : ep.shortLabel
+    // Errors show only their warning, without the reason.
+    string reason = isError ? "" : ep.reason
+    // The reason starts on a new line under the label.
+    string caption = isError ? "!!! ERROR !!!" : ep.shortLabel == "" or reason == "" ? ep.shortLabel + reason : ep.shortLabel + "\n" + reason
     string heading = isError ? ep.problem : group.strategy + " · " + group.sourceTimeframe + " · " + str.upper(ep.direction)
-    string details = heading + "\nPrice: " + formatPrice(ep.price) + "\n" + str.format_time(ep.timestamp, "yyyy-MM-dd HH:mm:ss", "UTC") + " UTC" + (isError or ep.shortLabel == "" ? "" : "\nLabel: " + ep.shortLabel)
+    string details = heading + "\nPrice: " + formatPrice(ep.price) + "\n" + str.format_time(ep.timestamp, "yyyy-MM-dd HH:mm:ss", "UTC") + " UTC" + (isError or ep.shortLabel == "" ? "" : "\nLabel: " + ep.shortLabel) + (reason == "" ? "" : "\n" + reason)
     // The circle label has no text, so it stays round. Its center sits on the
     // recorded price and time, with no offset.
     array.push(circles, label.new(ep.timestamp, ep.price, "", xloc = xloc.bar_time, yloc = yloc.price, color = markerColor, style = label.style_circle, size = circleSizePoints(), tooltip = details, force_overlay = true))
@@ -500,7 +516,7 @@ if barstate.islast
                             int candleTime = barPosition >= 0 ? array.get(barOpens, barPosition) : ep.timestamp
                             bool inView = candleTime >= chart.left_visible_bar_time and candleTime <= chart.right_visible_bar_time
                             if (pass == 0 and inView) or (pass == 1 and not inView)
-                                int labelCost = ep.problem != "" or ep.shortLabel != "" ? 2 : 1
+                                int labelCost = ep.problem != "" or ep.shortLabel != "" or ep.reason != "" ? 2 : 1
                                 if barPosition < 0
                                     historyOmissions += 1
                                 else if reservedLabels + labelCost > MAX_LABELS
@@ -534,7 +550,7 @@ if barstate.islast
             if not generatedThisRun
                 string labelTemplate = LABEL_HEAD + valueOrPlaceholder(beLevel) + LABEL_MIDDLE + valueOrPlaceholder(slBuffer) + LABEL_TAIL + LABEL_LINE
                 // Log \n as typed text, so the copied record pastes into a list on one line.
-                string record = "\n👇\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + ";"
+                string record = "\n👇\n" + formatPrice(pickedPrice) + "; " + str.tostring(pickedTime) + "; " + DIRECTION_PLACEHOLDER + "; " + str.replace_all(labelTemplate, "\n", "\\n") + "; " + REASON_PREFIX + " ;"
                 log.info(record)
                 generatedThisRun := true
 
@@ -561,7 +577,7 @@ if barstate.islast
     setTableRow(1, "Saved / matching / drawn", str.tostring(saved) + " / " + str.tostring(matching) + " / " + str.tostring(drawn), normal, "Counts valid entries. The Invalid / error circles row counts invalid records.")
     setTableRow(2, "MA50 · 1D / 4h / 1h / 15m", categoryCounts(0), normal)
     setTableRow(3, "MA200 · 1D / 4h / 1h / 15m", categoryCounts(4), normal)
-    setTableRow(4, "Not drawn · history / limits", str.tostring(historyOmissions) + " / " + str.tostring(limitOmissions), historyOmissions + limitOmissions > 0 ? color.orange : normal, "Entries and placeable errors in the selected categories that the script didn't draw. History: no loaded candle contains the time, or the time falls in a session gap. Limits: the script draws at most " + str.tostring(MAX_LABELS) + " labels. Errors and labeled entries take two labels, unlabeled entries take one. Visible records get labels first, and errors come before valid entries in each pass.")
+    setTableRow(4, "Not drawn · history / limits", str.tostring(historyOmissions) + " / " + str.tostring(limitOmissions), historyOmissions + limitOmissions > 0 ? color.orange : normal, "Entries and placeable errors in the selected categories that the script didn't draw. History: no loaded candle contains the time, or the time falls in a session gap. Limits: the script draws at most " + str.tostring(MAX_LABELS) + " labels. Errors and entries with a label or a reason take two labels. Other entries take one. Visible records get labels first, and errors come before valid entries in each pass.")
     setTableRow(5, "Invalid / error circles", str.tostring(invalid) + " / " + str.tostring(errorsDrawn), invalid > 0 ? color.red : normal, "Invalid: all malformed records. Error circles: the red circles the script drew in the selected categories. A row with an unusable price or time gets no circle; find it in Diagnostics.")
     setTableRow(6, "Filters / chart", filterMessage, supportedChart ? normal : color.orange)
     setTableRow(7, "Generator", generatorMessage, generateEntry and not pickerValid ? color.orange : normal)
