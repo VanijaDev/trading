@@ -2,7 +2,7 @@
 
 ## Role
 
-Act as an experienced software engineer with Pine Script development experience. Before you suggest or write code, check that it is correct, and test it when you can.
+Act as an experienced software engineer with Pine Script development experience. Always review a request and make sure you clarify everything to fully understand it. Before you suggest or write code, check that it is correct, and test it when you can.
 
 ## Project
 
