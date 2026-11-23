@@ -1,0 +1,114 @@
+//@version=6
+indicator("Tail Cluster Reversal", shorttitle = "Tail Cluster", overlay = true)
+
+// HOW TO USE: Tail Cluster Reversal
+// The script marks a run of bars with matching prices and long tails at a local high or low.
+// A red triangle over the last pattern bar marks a local high. A green triangle under it
+// marks a local low. The triangle appears when that bar closes. The script checks the bars
+// before the pattern and doesn't wait for bars after it.
+//
+// A local high needs all five checks to pass:
+// 1. Every pattern bar's high tops the highest high of the Previous bars before the pattern.
+// 2. The highs match within Highs / lows deviation.
+// 3. The body tops, max(open, close), match within Body tops deviation.
+// 4. The body bottoms, min(open, close), match within Body bottoms deviation.
+// 5. The average upper tail, high - body top, reaches Min tail.
+// A deviation is the highest minus the lowest value. The deviations and Min tail are
+// percentages of the average bar size (high - low) of the pattern bars.
+// A local low mirrors checks 1, 2 and 5: every low sits under the lowest low of the
+// Previous bars, the lows match, and the average lower tail (body bottom - low) reaches Min tail.
+// A window that passes both rule sets puts both triangles on its last bar.
+//
+// ONE TRIANGLE PER SEQUENCE: after any passing window, the next triangle needs a passing
+// window that starts after the last bar of the most recent passing window. With Pattern bars
+// set to 4, bars A-D and B-E can both pass, and D gets the one triangle.
+
+const string PATTERN_GROUP = "Pattern"
+const string MATCH_GROUP = "Matching prices"
+const float MIN_PERCENT = 0.0
+const float PERCENT_STEP = 1.0
+
+int previousBarsInput = input.int(10, "Previous bars", minval = 1, maxval = 500, group = PATTERN_GROUP, tooltip = "Every pattern bar's high must top the highest high of this many bars before the pattern. For a local low, every low must sit under their lowest low.")
+int patternBarsInput = input.int(4, "Pattern bars", minval = 2, maxval = 20, group = PATTERN_GROUP, tooltip = "Number of bars in a row that form the pattern.")
+float minTailInput = input.float(30.0, "Min tail, %", minval = MIN_PERCENT, maxval = 100.0, step = PERCENT_STEP, group = PATTERN_GROUP, tooltip = "Minimum average upper tail (high - body top) of the pattern bars, as a % of their average size (high - low). A local low uses the lower tails (body bottom - low).")
+float extremeDeviationInput = input.float(20.0, "Highs / lows deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest high of the pattern bars, as a % of their average size (high - low). A local low compares the lows.")
+float bodyTopDeviationInput = input.float(10.0, "Body tops deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest body top, the higher of open and close, as a % of the average bar size.")
+float bodyBottomDeviationInput = input.float(10.0, "Body bottoms deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest body bottom, the lower of open and close, as a % of the average bar size.")
+
+// @function Measures the spread of a series over the pattern bars.
+// @param source Series to measure.
+// @returns The highest minus the lowest value of `source` over the last `patternBarsInput` bars.
+patternSpread(float source) =>
+    ta.highest(source, patternBarsInput) - ta.lowest(source, patternBarsInput)
+
+// @function Averages a series over the pattern bars.
+// @param source Series to average.
+// @returns The average of `source` over the last `patternBarsInput` bars.
+patternAverage(float source) =>
+    math.sum(source, patternBarsInput) / patternBarsInput
+
+// @function Converts a price distance to a percentage of the average bar size.
+// @param distance Price distance, such as a spread or an average tail.
+// @param averageSize Average bar size of the pattern bars. Must be greater than 0.
+// @returns `distance` as a % of `averageSize`.
+percentOfSize(float distance, float averageSize) =>
+    distance / averageSize * 100
+
+// @function Runs the checks that differ between a local high and a local low: checks 1, 2 and 5.
+// @param clearsPrevious true when every pattern bar clears the Previous bars on this side:
+//        every high tops their highest high, or every low sits under their lowest low.
+// @param extremeSpread Spread of the highs for a local high, or of the lows for a local low.
+// @param averageTail Average upper tail for a local high, or average lower tail for a local low.
+// @param averageSize Average bar size of the pattern bars. Must be greater than 0.
+// @returns true when all three checks pass.
+sideChecksPass(bool clearsPrevious, float extremeSpread, float averageTail, float averageSize) =>
+    clearsPrevious and percentOfSize(extremeSpread, averageSize) <= extremeDeviationInput and percentOfSize(averageTail, averageSize) >= minTailInput
+
+// @function Applies the one-triangle rule to the window of the last `patternBarsInput` bars.
+// @param passes true when the window passes every check.
+// @param lastPassEnd Bar index of the last bar of the most recent passing window, or na.
+// @returns A tuple: true when the window gets a triangle, and the updated `lastPassEnd`.
+updateSequence(bool passes, int lastPassEnd) =>
+    bool getsTriangle = passes and (na(lastPassEnd) or bar_index - patternBarsInput + 1 > lastPassEnd)
+    int passEnd = passes ? bar_index : lastPassEnd
+    [getsTriangle, passEnd]
+
+float bodyTop = math.max(open, close)
+float bodyBottom = math.min(open, close)
+float averageSize = patternAverage(high - low)
+float highSpread = patternSpread(high)
+float lowSpread = patternSpread(low)
+float bodyTopSpread = patternSpread(bodyTop)
+float bodyBottomSpread = patternSpread(bodyBottom)
+float averageUpperTail = patternAverage(high - bodyTop)
+float averageLowerTail = patternAverage(bodyBottom - low)
+float lowestPatternHigh = ta.lowest(high, patternBarsInput)
+float highestPatternLow = ta.highest(low, patternBarsInput)
+// The Previous bars window ends on the bar before the first pattern bar.
+float previousHighest = ta.highest(high, previousBarsInput)[patternBarsInput]
+float previousLowest = ta.lowest(low, previousBarsInput)[patternBarsInput]
+
+// The window needs the pattern bars plus the Previous bars of history, and an average size greater than 0.
+bool validWindow = bar_index >= patternBarsInput + previousBarsInput - 1 and not na(averageSize) and averageSize > 0
+bool bodyTopsMatch = validWindow and percentOfSize(bodyTopSpread, averageSize) <= bodyTopDeviationInput
+bool bodyBottomsMatch = validWindow and percentOfSize(bodyBottomSpread, averageSize) <= bodyBottomDeviationInput
+bool clearsPreviousHighs = not na(previousHighest) and lowestPatternHigh > previousHighest
+bool clearsPreviousLows = not na(previousLowest) and highestPatternLow < previousLowest
+bool highPasses = bodyTopsMatch and bodyBottomsMatch and sideChecksPass(clearsPreviousHighs, highSpread, averageUpperTail, averageSize)
+bool lowPasses = bodyTopsMatch and bodyBottomsMatch and sideChecksPass(clearsPreviousLows, lowSpread, averageLowerTail, averageSize)
+
+var int lastHighPassEnd = na
+var int lastLowPassEnd = na
+bool newHighPattern = false
+bool newLowPattern = false
+// The trackers and triangles change on confirmed bars, so the forming bar can't add a triangle.
+if barstate.isconfirmed
+    [highGetsTriangle, highPassEnd] = updateSequence(highPasses, lastHighPassEnd)
+    [lowGetsTriangle, lowPassEnd] = updateSequence(lowPasses, lastLowPassEnd)
+    newHighPattern := highGetsTriangle
+    newLowPattern := lowGetsTriangle
+    lastHighPassEnd := highPassEnd
+    lastLowPassEnd := lowPassEnd
+
+plotshape(newHighPattern, "Local high pattern", style = shape.triangledown, location = location.abovebar, color = color.red)
+plotshape(newLowPattern, "Local low pattern", style = shape.triangleup, location = location.belowbar, color = color.green)
