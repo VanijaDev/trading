@@ -29,9 +29,9 @@ const float MIN_PERCENT = 0.0
 const float PERCENT_STEP = 1.0
 
 int previousBarsInput = input.int(10, "Previous bars", minval = 1, maxval = 500, group = PATTERN_GROUP, tooltip = "Every pattern bar's high must top the highest high of this many bars before the pattern. For a local low, every low must sit under their lowest low.")
-int patternBarsInput = input.int(4, "Pattern bars", minval = 2, maxval = 20, group = PATTERN_GROUP, tooltip = "Number of bars in a row that form the pattern.")
-float minTailInput = input.float(30.0, "Min tail, %", minval = MIN_PERCENT, maxval = 100.0, step = PERCENT_STEP, group = PATTERN_GROUP, tooltip = "Minimum average upper tail (high - body top) of the pattern bars, as a % of their average size (high - low). A local low uses the lower tails (body bottom - low).")
-float extremeDeviationInput = input.float(20.0, "Highs / lows deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest high of the pattern bars, as a % of their average size (high - low). A local low compares the lows.")
+int patternBarsInput = input.int(3, "Pattern bars", minval = 2, maxval = 20, group = PATTERN_GROUP, tooltip = "Number of bars in a row that form the pattern.")
+float minTailInput = input.float(20.0, "Min tail, %", minval = MIN_PERCENT, maxval = 100.0, step = PERCENT_STEP, group = PATTERN_GROUP, tooltip = "Minimum average upper tail (high - body top) of the pattern bars, as a % of their average size (high - low). A local low uses the lower tails (body bottom - low).")
+float extremeDeviationInput = input.float(10.0, "Highs / lows deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest high of the pattern bars, as a % of their average size (high - low). A local low compares the lows.")
 float bodyTopDeviationInput = input.float(10.0, "Body tops deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest body top, the higher of open and close, as a % of the average bar size.")
 float bodyBottomDeviationInput = input.float(10.0, "Body bottoms deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = MATCH_GROUP, tooltip = "Highest minus lowest body bottom, the lower of open and close, as a % of the average bar size.")
 
