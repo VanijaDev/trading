@@ -1,0 +1,105 @@
+//@version=6
+indicator("Three Bar Doji Reversal", shorttitle = "3-Bar Doji", overlay = true)
+
+// HOW TO USE: Three Bar Doji Reversal
+// The script marks a reversal pattern of three bars: a big bar, a small doji, and a big bar
+// of the opposite color. A red triangle over bar 3 marks the pattern at a local high. A green
+// triangle under bar 3 marks it at a local low. The triangle appears when bar 3 closes. The
+// script checks the bars before the pattern and doesn't wait for bars after it.
+//
+// Size = high - low. Body = |close - open|. Upper tail = high - body top. Lower tail = body
+// bottom - low. Green: close > open. Red: close < open. Previous bars: the bars before bar 1.
+//
+// A pattern needs checks 2 to 7, plus checks 1 and 8 for a local high or a local low:
+// 1. Local high: no Previous bar's high tops bar 1's high. Local low: no Previous bar's low
+//    sits under bar 1's low. Ties pass.
+// 2. Bar 1 and bar 3 have opposite colors, in either order.
+// 3. The sizes of bar 1 and bar 3 differ by at most Side sizes deviation, as a % of bar 1's size.
+// 4. Bar 1 and bar 3 each top the Previous bars' average size by at least Side size excess.
+// 5. Each tail of bar 1 and of bar 3 stays within Side tail max, as a % of that bar's size.
+// 6. The doji's size stays within Doji max size, as a % of the average size of bar 1 and bar 3.
+// 7. The doji's body stays within Doji max body, as a % of the doji's size. A doji with size 0
+//    passes.
+// 8. Local high: no high of bar 1 or bar 3 tops the doji's high. Local low: no low of bar 1 or
+//    bar 3 sits under the doji's low. Ties pass.
+// A pattern that passes checks 1 and 8 on both sides gets both triangles. Bar 3 of one
+// pattern can serve as bar 1 of the next one, and each pattern gets its own triangle.
+
+const string PATTERN_GROUP = "Pattern"
+const string SIDE_GROUP = "Side bars"
+const string DOJI_GROUP = "Doji"
+const float MIN_PERCENT = 0.0
+const float HUNDRED_PERCENT = 100.0
+const float PERCENT_STEP = 1.0
+// History offsets from bar 3, the current bar.
+const int BAR_1_OFFSET = 2
+const int DOJI_OFFSET = 1
+// The Previous bars end on the bar before bar 1.
+const int PREVIOUS_OFFSET = 3
+
+int previousBarsInput = input.int(10, "Previous bars", minval = 1, maxval = 500, group = PATTERN_GROUP, tooltip = "Number of bars before bar 1. Local high: none of their highs may top bar 1's high. Local low: none of their lows may sit under bar 1's low. Ties pass. Side size excess compares against their average size.")
+float sideSizeExcessInput = input.float(30.0, "Side size excess, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = SIDE_GROUP, tooltip = "Bar 1 and bar 3 must each top the Previous bars' average size (high - low) by at least this %. 0 = at least the average, 100 = at least twice the average.")
+float sideSizeDeviationInput = input.float(25.0, "Side sizes deviation, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = SIDE_GROUP, tooltip = "Maximum difference between the sizes (high - low) of bar 1 and bar 3, as a % of bar 1's size.")
+float sideTailMaxInput = input.float(25.0, "Side tail max, %", minval = MIN_PERCENT, maxval = HUNDRED_PERCENT, step = PERCENT_STEP, group = SIDE_GROUP, tooltip = "Maximum length of each tail of bar 1 and of bar 3, as a % of that bar's size (high - low). Upper tail: high - body top. Lower tail: body bottom - low.")
+float dojiSizeMaxInput = input.float(50.0, "Doji max size, %", minval = MIN_PERCENT, step = PERCENT_STEP, group = DOJI_GROUP, tooltip = "Maximum doji size (high - low), as a % of the average size of bar 1 and bar 3.")
+float dojiBodyMaxInput = input.float(25.0, "Doji max body, %", minval = MIN_PERCENT, maxval = HUNDRED_PERCENT, step = PERCENT_STEP, group = DOJI_GROUP, tooltip = "Maximum doji body (|close - open|), as a % of the doji's size (high - low). A doji with size 0 passes.")
+
+// @function Checks that a price distance stays within a percentage of another price distance.
+// @param part Price distance to check, such as a tail or a size difference.
+// @param whole Price distance that `maxPercent` applies to, such as a bar's size.
+// @param maxPercent Largest allowed `part`, as a % of `whole`.
+// @returns true when `part` is at most `maxPercent` % of `whole`. When `whole` is 0, `part`
+//          must be 0 to pass.
+withinPercent(float part, float whole, float maxPercent) =>
+    part * HUNDRED_PERCENT <= maxPercent * whole
+
+// Per-bar values. The pattern reads them on bar 1 at BAR_1_OFFSET, on the doji at DOJI_OFFSET,
+// and on bar 3 with no offset.
+float barSize = high - low
+float bodySize = math.abs(close - open)
+float upperTail = high - math.max(open, close)
+float lowerTail = math.min(open, close) - low
+bool isGreen = close > open
+bool isRed = close < open
+// Check 5 on one bar.
+bool tailsWithinMax = withinPercent(upperTail, barSize, sideTailMaxInput) and withinPercent(lowerTail, barSize, sideTailMaxInput)
+// Check 7 on one bar.
+bool bodyWithinDojiMax = withinPercent(bodySize, barSize, dojiBodyMaxInput)
+
+// Each window covers the current bar and the bars before it. Read at PREVIOUS_OFFSET, it
+// covers the Previous bars.
+float rollingHighest = ta.highest(high, previousBarsInput)
+float rollingLowest = ta.lowest(low, previousBarsInput)
+float rollingAverageSize = ta.sma(barSize, previousBarsInput)
+float previousHighest = rollingHighest[PREVIOUS_OFFSET]
+float previousLowest = rollingLowest[PREVIOUS_OFFSET]
+float previousAverageSize = rollingAverageSize[PREVIOUS_OFFSET]
+
+float size1 = barSize[BAR_1_OFFSET]
+float dojiSize = barSize[DOJI_OFFSET]
+float size3 = barSize
+float averageSideSize = (size1 + size3) / 2
+float minSideSize = previousAverageSize * (HUNDRED_PERCENT + sideSizeExcessInput) / HUNDRED_PERCENT
+
+// The oldest Previous bar sits previousBarsInput + BAR_1_OFFSET bars before bar 3, so the
+// chart needs that many bars before bar 3.
+bool validWindow = bar_index >= previousBarsInput + BAR_1_OFFSET and not na(previousHighest) and not na(previousLowest) and not na(previousAverageSize)
+bool oppositeColors = (isGreen[BAR_1_OFFSET] and isRed) or (isRed[BAR_1_OFFSET] and isGreen)
+bool sideSizesMatch = withinPercent(math.abs(size3 - size1), size1, sideSizeDeviationInput)
+bool sideBarsBig = size1 >= minSideSize and size3 >= minSideSize
+bool sideTailsSmall = tailsWithinMax[BAR_1_OFFSET] and tailsWithinMax
+bool dojiSizeSmall = withinPercent(dojiSize, averageSideSize, dojiSizeMaxInput)
+bool dojiBodySmall = bodyWithinDojiMax[DOJI_OFFSET]
+// validWindow comes first: on a bar without enough history, it fails the pattern before
+// any other check counts.
+bool patternPasses = validWindow and oppositeColors and sideSizesMatch and sideBarsBig and sideTailsSmall and dojiSizeSmall and dojiBodySmall
+// Check 8: the doji holds the pattern's high, or its low. Ties pass.
+bool dojiHoldsHigh = high[DOJI_OFFSET] >= math.max(high[BAR_1_OFFSET], high)
+bool dojiHoldsLow = low[DOJI_OFFSET] <= math.min(low[BAR_1_OFFSET], low)
+
+// Triangles appear on confirmed bars, so the forming bar can't show one.
+bool newHighPattern = barstate.isconfirmed and patternPasses and high[BAR_1_OFFSET] >= previousHighest and dojiHoldsHigh
+bool newLowPattern = barstate.isconfirmed and patternPasses and low[BAR_1_OFFSET] <= previousLowest and dojiHoldsLow
+
+plotshape(newHighPattern, "Local high pattern", style = shape.triangledown, location = location.abovebar, color = color.red, size = size.small)
+plotshape(newLowPattern, "Local low pattern", style = shape.triangleup, location = location.belowbar, color = color.green, size = size.small)
